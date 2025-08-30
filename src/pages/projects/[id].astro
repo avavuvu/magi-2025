@@ -1,0 +1,75 @@
+---
+import type { GetStaticPaths, GetStaticPathsResult } from "astro";
+import { getEntry } from "astro:content";
+import { getCollection } from "astro:content";
+import { render } from "astro:content";
+import Layout from "../../layouts/Layout.astro";
+import convertToUrl from "../../lib/convertUrl";
+import { getEntries } from "astro:content";
+
+export const getStaticPaths = (async () => {
+	const projects = await getCollection("projects")
+
+	return projects.map(({data}) => ({
+		params: {
+			id: `${convertToUrl(data.title)}`
+		}
+	})) as GetStaticPathsResult
+}) satisfies GetStaticPaths;
+
+
+const { id } = Astro.params
+
+if(!id) {
+    return Astro.redirect(404)
+}
+
+const projects = await getCollection("projects")
+const project = projects.find(project => `${convertToUrl(project.data.title)}` == id)
+
+if(!project) {
+    return Astro.redirect(404)
+}
+
+const { data: { title, image, category, students: studentIds }} = project
+
+const allStudents = await getCollection("students")
+const students = allStudents.filter(student => {
+    const studentId = `@${convertToUrl(student.data.name)}`
+
+    return studentIds.includes(studentId)
+})
+
+const { Content } = await render(project)
+
+---
+
+
+<Layout>
+    <h1>{title}</h1>
+    <p>{category}</p>
+
+    <img src={image}> 
+
+    <h2>made by</h2>
+    <ul>
+        {students.map(student => (
+            <li>
+                <a href={`/@${convertToUrl(student.data.name)}`}>
+                    {student.data.name}
+                </a>
+            </li>
+        ))}
+    </ul>
+
+    <Content/>
+</Layout>
+
+<style>
+    img {
+        width: 100%;
+        object-fit: cover;
+        aspect-ratio: 3 / 2;
+        
+    }
+</style>

@@ -1,0 +1,75 @@
+---
+import type { GetStaticPaths, GetStaticPathsResult } from "astro";
+import { getCollection } from "astro:content";
+import convertToUrl from "../lib/convertUrl";
+import Layout from "../layouts/Layout.astro";
+import { render } from "astro:content";
+
+export const getStaticPaths = (async () => {
+	const students = await getCollection("students")
+	
+	return students.map(({data}) => ({
+		params: {
+			id: `@${convertToUrl(data.name)}`
+		}
+	})) as GetStaticPathsResult
+}) satisfies GetStaticPaths;
+
+
+const { id } = Astro.params
+
+if(!id) {
+    return Astro.redirect(404)
+}
+
+const students = await getCollection("students")
+const student = students.find(student => `@${convertToUrl(student.data.name)}` == id)
+
+if(!student) {
+    return Astro.redirect(404)
+}
+
+const projects = await getCollection("projects")
+const studentWork = projects.find(project => project.data.students.includes(String(id)))
+
+const { data: { name, links }} = student
+
+const { Content } = await render(student)
+
+---
+
+
+<Layout>
+    <h1>{name}</h1>
+
+    {studentWork && (
+        <div class="work">
+            <img src={studentWork.data.image}/>
+            <a href={`/projects/${convertToUrl(studentWork.data.title)}`}>{studentWork.data.title }</a>
+        </div>
+    )}
+    <ul>
+        {Object.entries(links).map(([link, url]) => (
+            <li>
+                <a href={link === "instagram" ? `https://instagram.com/${url}` : link} >
+                    
+                    {link}
+                </a>
+            </li>
+        ))}
+    </ul>
+
+    <Content/>
+</Layout>
+
+<style>
+    .work {
+        border: 1px solid black;
+        width: min-content;
+        display: grid;
+    }
+
+    img {
+        max-width: 100px;
+    }
+</style>

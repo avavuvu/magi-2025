@@ -1,16 +1,27 @@
 ---
+import { getCollection } from "astro:content";
+import Layout from "../layouts/Layout.astro";
+import convertToUrl from "../lib/convertUrl";
 
+const projects = await getCollection("projects")
+
+const projectsCategorized = Object.entries(Object.groupBy(projects, (project) => project.data.category))
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<Layout>
+	{projectsCategorized.map(([category, projects]) => 
+		<div>
+			<h2>{category}</h2>
+
+			<ul>
+				{projects.map(project => (
+					<li>
+						<a href={`/projects/${convertToUrl(project.data.title)}`}>
+							{project.data.title}
+						</a>
+					</li>
+				))}
+			</ul>
+		</div>
+	)}
+</Layout>
