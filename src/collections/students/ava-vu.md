@@ -1,5 +1,6 @@
 ---
 name: Ava Vu
+image: /src/assets/mee.jpg
 links:
     instagram: "@avavu.au"
     website: "https://avavu.au"

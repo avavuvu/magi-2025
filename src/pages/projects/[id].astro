@@ -6,6 +6,7 @@ import { render } from "astro:content";
 import Layout from "../../layouts/Layout.astro";
 import convertToUrl from "../../lib/convertUrl";
 import { getEntries } from "astro:content";
+import { Image } from "astro:assets";
 
 export const getStaticPaths = (async () => {
 	const projects = await getCollection("projects")
@@ -46,30 +47,69 @@ const { Content } = await render(project)
 
 
 <Layout>
-    <h1>{title}</h1>
-    <p>{category}</p>
+    <div class="grid grid-cols-[1fr_1fr_1fr_1fr]">
+        <g-region class="row-span-2 col-span-2 ">
+            
+        </g-region>
+        <g-region class="row-span-2 col-span-2 p-2">
+            <h1 class="font-bold">{title}</h1>
+            
+        </g-region>
+        <g-region>
+            <div class="w-full h-full rounded-full border grid place-items-center">
+                <p>{category}</p>
+            </div>
+        </g-region>
+        <g-region>
+            <div class="w-full h-full rounded-full border">
 
-    <img src={image}> 
+            </div>
+        </g-region>
+        <g-region>
+            <div class="w-full h-full rounded-full border">
 
-    <h2>made by</h2>
-    <ul>
-        {students.map(student => (
-            <li>
-                <a href={`/@${convertToUrl(student.data.name)}`}>
-                    {student.data.name}
-                </a>
-            </li>
-        ))}
-    </ul>
+            </div>
+        </g-region>
+        <g-region>
+            <div class="w-full h-full rounded-full border">
 
-    <Content/>
+            </div>
+        </g-region>
+        <g-region class="col-span-4">
+            <Image alt="" src={image}></Image>
+            <!-- <img src={image.src} alt="a" class="w-full h-full object-cover"> -->
+        </g-region>
+    
+        
+    
+        <div class="col-span-4 p-2">
+            <h2>made by</h2>
+            <ul>
+                {students.map(student => (
+                    <li>
+                        <a href={`/@${convertToUrl(student.data.name)}`}>
+                            {student.data.name}
+                        </a>
+                    </li>
+                ))}
+            </ul>
+
+        </div>
+    
+        <g-region class="col-span-4 p-2">
+            <Content/>
+        </g-region>
+
+        <g-region class="col-span-2">
+
+        </g-region>
+
+    </div>
 </Layout>
 
 <style>
-    img {
-        width: 100%;
-        object-fit: cover;
-        aspect-ratio: 3 / 2;
-        
+    g-region {
+        border: 1px solid white;
+        aspect-ratio: 1;
     }
 </style>

@@ -1,10 +1,10 @@
 import { glob } from "astro/loaders";
 import { defineCollection, reference, z } from "astro:content";
-import { optional } from "astro:schema";
 
 const students = defineCollection({
-    schema: z.object({
+    schema: ({image}) => z.object({
         name: z.string(),
+        image: image().optional(),
         links: z.object({
             instagram: z.string().optional(),
             website: z.string().url().optional(),
@@ -17,10 +17,10 @@ const students = defineCollection({
 })
 
 const projects = defineCollection({
-    schema: z.object({
+    schema: ({image}) => z.object({
         title: z.string(),
         students: z.array(z.string()),
-        image: z.string(),
+        image: image(),
         category: z.union([
             z.literal("animation"),
             z.literal("games"),

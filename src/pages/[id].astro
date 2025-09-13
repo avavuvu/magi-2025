@@ -4,6 +4,7 @@ import { getCollection } from "astro:content";
 import convertToUrl from "../lib/convertUrl";
 import Layout from "../layouts/Layout.astro";
 import { render } from "astro:content";
+import { Image } from "astro:assets";
 
 export const getStaticPaths = (async () => {
 	const students = await getCollection("students")
@@ -32,7 +33,7 @@ if(!student) {
 const projects = await getCollection("projects")
 const studentWork = projects.find(project => project.data.students.includes(String(id)))
 
-const { data: { name, links }} = student
+const { data: { name, links, image }} = student
 
 const { Content } = await render(student)
 
@@ -44,7 +45,9 @@ const { Content } = await render(student)
 
     {studentWork && (
         <div class="work">
-            <img src={studentWork.data.image}/>
+            {image && (
+                <Image quality={"dither"} width={1024}  src={image} alt=""></Image>
+            )}
             <a href={`/projects/${convertToUrl(studentWork.data.title)}`}>{studentWork.data.title }</a>
         </div>
     )}
@@ -65,11 +68,10 @@ const { Content } = await render(student)
 <style>
     .work {
         border: 1px solid black;
-        width: min-content;
         display: grid;
     }
 
     img {
-        max-width: 100px;
+        max-width: 400px;
     }
 </style>
