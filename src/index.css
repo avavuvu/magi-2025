@@ -64,7 +64,7 @@ body {
 .search-input {
   width: 100%;
   background: transparent;
-  border: 2px solid white;
+  border: 1px solid white;
   color: white;
   padding: 12px 20px;
   font-family: "Lucida Console", "Courier New", monospace;
@@ -134,7 +134,7 @@ body {
 /* Button Styles */
 .ui-button {
   background: transparent;
-  border: 2px solid white;
+  border: 1px solid white;
   color: white;
   padding: 10px 20px;
   font-family: "Lucida Console", "Courier New", monospace;
@@ -172,7 +172,7 @@ body {
   padding-top: 10px;
   transform: translate3d(calc(50% + 40px), 0, 0);
   text-align: left;
-  background: #bd6ca9ff;
+  background: #bd6ca9;
   color: white;
   padding: 10px 15px;
   border-radius: 0px;
@@ -244,7 +244,7 @@ body {
 }
 
 .profile-card {
-  background: rgb(129, 129, 133);
+  background: rgb(61, 61, 61);
   border-radius: 0px;
   padding: 20px;
   width: 300px;
@@ -266,7 +266,7 @@ body {
 
 .profile-header h3 {
   margin: 0;
-  color: #333;
+  color: #ffffff;
   font-size: 1.2em;
 }
 
@@ -299,7 +299,7 @@ body {
 }
 
 .profile-content strong {
-  color: #333;
+  color: #ffffff;
 }
 
 @keyframes slideIn {
