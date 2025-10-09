@@ -76,7 +76,9 @@ const { Content } = await render(project)
             </div>
         </g-region>
         <g-region class="col-span-4">
+            {image && (<>
             <Image alt="" src={image}></Image>
+            </>)}
             <!-- <img src={image.src} alt="a" class="w-full h-full object-cover"> -->
         </g-region>
     

@@ -9,7 +9,8 @@ const students = defineCollection({
             instagram: z.string().optional(),
             website: z.string().url().optional(),
             youtube: z.string().optional(),
-        })
+        }),
+        fav: z.string().optional()
     }),
     loader: glob({
         pattern: "src/collections/students/*.md"
@@ -20,7 +21,7 @@ const projects = defineCollection({
     schema: ({image}) => z.object({
         title: z.string(),
         students: z.array(z.string()),
-        image: image(),
+        image: image().optional(),
         category: z.union([
             z.literal("animation"),
             z.literal("games"),

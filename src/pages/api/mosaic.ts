@@ -1,0 +1,70 @@
+import type { APIRoute, LocalImageService } from "astro";
+import { isRemoteAllowed } from "astro/assets/utils";
+import { getConfiguredImageService, imageConfig } from 'astro:assets';
+import { isRemotePath } from "node_modules/astro/dist/core/path";
+
+async function loadRemoteImage(src: URL, headers: Headers) {
+	try {
+		const res = await fetch(src, {
+			// Forward all headers from the original request
+			headers,
+		});
+
+		if (!res.ok) {
+			return undefined;
+		}
+
+		return await res.arrayBuffer();
+	} catch {
+		return undefined;
+	}
+}
+
+export const GET: APIRoute = async ({ request }) => {
+  try {
+		const imageService = await getConfiguredImageService();
+
+		if (!('transform' in imageService)) {
+			throw new Error('Configured image service is not a local service');
+		}
+
+		const url = new URL(request.url);
+		const transform = await imageService.parseURL(url, imageConfig);
+
+		if (!transform?.src) {
+			throw new Error('Incorrect transform returned by `parseURL`');
+		}
+
+		let inputBuffer: ArrayBuffer | undefined = undefined;
+
+		const isRemoteImage = isRemotePath(transform.src);
+
+		if (isRemoteImage && isRemoteAllowed(transform.src, imageConfig) === false) {
+			return new Response('Forbidden', { status: 403 });
+		}
+
+		const sourceUrl = new URL(transform.src, url.origin);
+		inputBuffer = await loadRemoteImage(sourceUrl, isRemoteImage ? new Headers() : request.headers);
+
+		if (!inputBuffer) {
+			return new Response('Not Found', { status: 404 });
+		}
+
+		const { data, format } = await imageService.transform(
+			new Uint8Array(inputBuffer),
+			transform,
+			imageConfig,
+		);
+
+		return new Response(data, {
+			status: 200,
+			headers: {
+				'Content-Type': `image/${format}`,
+				'Cache-Control': 'public, max-age=31536000',
+			},
+		});
+	} catch (err: unknown) {
+		console.error('Could not process image request:', err);
+		return new Response(`Server Error: ${err}`, { status: 500 });
+	}
+}
