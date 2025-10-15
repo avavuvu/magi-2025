@@ -101,6 +101,7 @@ const generateDataFromResponses = async () => {
 
     const websiteRegex = /^(https?:\/\/)?([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(\/[^\s]*)?$/
     const imageIdRegex = /(?<=id=)[^&?]+/
+    const youtubeIdRegex = /(?:https?:\/\/)?(?:(?:www\.)?youtube\.com\/(?:(?:v\/)|(?:embed\/|watch(?:\/|\?)){1,2}(?:.*v=)?|.*v=)?|(?:www\.)?youtu\.be\/)([A-Za-z0-9_\-]+)&?.*$/
 
     for(const submission of submissions) {
         if(!submission.fullName) {
@@ -125,9 +126,11 @@ const generateDataFromResponses = async () => {
 
         const profileImageId = submission.profileImageUrl.match(imageIdRegex)
         const projectImageId = submission.featuredImageUrl.match(imageIdRegex)
+        const youtubeIdMatch = submission.videoUrl.match(youtubeIdRegex)
 
         let profileImagePath: string | undefined
         let projectImagePath: string | undefined
+        let youtubeId: string | undefined
 
         if(profileImageId) {
             profileImagePath = await downloadImage(profileImageId[0], studentFileName)
@@ -135,6 +138,10 @@ const generateDataFromResponses = async () => {
 
         if(projectImageId) {
             projectImagePath = await downloadImage(projectImageId[0], projectFileName)
+        }
+
+        if(youtubeIdMatch) {
+            youtubeId = youtubeIdMatch[1]
         }
 
         if(submission.recentFavorite) {
@@ -153,9 +160,9 @@ const generateDataFromResponses = async () => {
             image: projectImagePath,
             students: [`@${studentFileName}`],
             category: convertCategory(submission.workType),
+            youtubeId
         }
         
-
         const studentBody = submission.personalProfile
         const projectBody = submission.workDescription
 

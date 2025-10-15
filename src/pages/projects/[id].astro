@@ -7,6 +7,7 @@ import Layout from "../../layouts/Layout.astro";
 import convertToUrl from "../../lib/convertUrl";
 import { getEntries } from "astro:content";
 import { Image } from "astro:assets";
+import { Frame } from "@/three/Frame"
 
 export const getStaticPaths = (async () => {
 	const projects = await getCollection("projects")
@@ -32,7 +33,7 @@ if(!project) {
     return Astro.redirect(404)
 }
 
-const { data: { title, image, category, students: studentIds }} = project
+const { data: { title, image, category, students: studentIds, youtubeId }} = project
 
 const allStudents = await getCollection("students")
 const students = allStudents.filter(student => {
@@ -45,73 +46,62 @@ const { Content } = await render(project)
 
 ---
 
-
 <Layout>
-    <div class="grid grid-cols-[1fr_1fr_1fr_1fr]">
-        <g-region class="row-span-2 col-span-2 ">
-            
-        </g-region>
-        <g-region class="row-span-2 col-span-2 p-2">
-            <h1 class="font-bold">{title}</h1>
-            
-        </g-region>
-        <g-region>
-            <div class="w-full h-full rounded-full border grid place-items-center">
-                <p>{category}</p>
-            </div>
-        </g-region>
-        <g-region>
-            <div class="w-full h-full rounded-full border">
+    <div class="bg-black w-ful h-96 sticky top-0 -z-10 border-b-white border-b-2">
+        <Frame client:load />
+    </div>
 
+    <div class="aspect-video mx-auto max-w-[90%] -mt-24 z-100 pb-24 ">
+        <div class="grid grid-rows-[1fr_1rem_2rem] lg:grid-rows-[1fr_3rem_4rem]">
+            <div id="hero" class="border-white border-2 w-full h-full row-start-1 row-end-3 col-start-1 col-end-2">
+                {image ? (
+                    <Image src={image} alt={`${title} header`}></Image>
+                ) : (
+                    <div class="w-full h-full border"></div>
+                )}
             </div>
-        </g-region>
-        <g-region>
-            <div class="w-full h-full rounded-full border">
+            <div class="
+                row-start-2 row-end-4 col-start-1 col-end-2 
+                text-right font-bold h-full bg-black ml-auto lg:text-2xl
+                border-white border-2 px-2 lg:p-2 lg:px-4 items-center flex">
+                <h1>{title}</h1>    
+            </div>
+        </div>
+    </div>
 
-            </div>
-        </g-region>
-        <g-region>
-            <div class="w-full h-full rounded-full border">
-
-            </div>
-        </g-region>
-        <g-region class="col-span-4">
-            {image && (<>
-            <Image alt="" src={image}></Image>
-            </>)}
-            <!-- <img src={image.src} alt="a" class="w-full h-full object-cover"> -->
-        </g-region>
     
+    <article class="pb-24">
         
-    
-        <div class="col-span-4 p-2">
-            <h2>made by</h2>
-            <ul>
-                {students.map(student => (
-                    <li>
-                        <a href={`/@${convertToUrl(student.data.name)}`}>
-                            {student.data.name}
-                        </a>
-                    </li>
-                ))}
-            </ul>
+
+        <div class="px-2">
+            <Content/>
 
         </div>
-    
-        <g-region class="col-span-4 p-2">
-            <Content/>
-        </g-region>
 
-        <g-region class="col-span-2">
-
-        </g-region>
-
-    </div>
+        {youtubeId && (
+            <div class="mx-2 my-4 aspect-video">
+                <iframe class="border-2 border-white" width="100%" height="100%"
+                    src={`https://www.youtube.com/embed/${youtubeId}`}>
+                </iframe>   
+            </div>
+        )}
+        
+        
+    </article>
 </Layout>
 
-<style>
-    g-region {
-        border: 1px solid white;
-        aspect-ratio: 1;
+<style is:global>
+    article {
+        background-color: black;
+        max-width: 72ch;
+        margin-left: auto;
+        margin-right: auto;
     }
+
+   #hero > img {
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    width: 100%;
+   }
+    
 </style>

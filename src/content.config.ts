@@ -27,7 +27,8 @@ const projects = defineCollection({
             z.literal("games"),
             z.literal("interactivity"),
             z.literal("research"),
-        ])
+        ]),
+        youtubeId: z.string().optional(),
     }),
     loader: glob({
         pattern: "src/collections/projects/*.md"
