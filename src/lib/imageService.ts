@@ -29,11 +29,15 @@ const service: LocalImageService = {
 
    
     transform: async (inputBuffer, transform, imageConfig) => {
-        if(transform.quality !== "dither") {
+        if(!transform.quality || !(transform.quality as string).includes("dither")) {
             return defaultImageService.transform(inputBuffer, transform, imageConfig)
         }
 
-        const image =  sharp(inputBuffer).resize(200).grayscale().gamma(3)
+        const size = transform.quality == "dither-small"
+            ? 32
+            : 200
+
+        const image =  sharp(inputBuffer).resize(size).grayscale().gamma(3)
         const buffer = await image.raw().toBuffer({ resolveWithObject: true,})
         const { width, height } = buffer.info
         const { data } = buffer

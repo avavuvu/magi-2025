@@ -7,6 +7,7 @@ import Layout from "../../layouts/Layout.astro";
 import convertToUrl from "../../lib/convertUrl";
 import { getEntries } from "astro:content";
 import { Image } from "astro:assets";
+import fallbackImage from "@assets/fallback.svg"
 import { Frame } from "@/three/Frame"
 
 export const getStaticPaths = (async () => {
@@ -51,24 +52,44 @@ const { Content } = await render(project)
         <Frame client:load />
     </div>
 
-    <div class="aspect-video mx-auto max-w-[90%] -mt-24 z-100 pb-24 ">
+    <div class="aspect-video mx-auto max-w-[90%] -mt-24 z-100 ">
         <div class="grid grid-rows-[1fr_1rem_2rem] lg:grid-rows-[1fr_3rem_4rem]">
             <div id="hero" class="border-white border-2 w-full h-full row-start-1 row-end-3 col-start-1 col-end-2">
                 {image ? (
                     <Image src={image} alt={`${title} header`}></Image>
                 ) : (
-                    <div class="w-full h-full border"></div>
+                    <Image quality="dither" src={fallbackImage} alt=""/>
                 )}
             </div>
             <div class="
                 row-start-2 row-end-4 col-start-1 col-end-2 
                 text-right font-bold h-full bg-black ml-auto lg:text-2xl
-                border-white border-2 px-2 lg:p-2 lg:px-4 items-center flex">
-                <h1>{title}</h1>    
+                border-white border-2 flex flex-col">
+                <h1 class="px-2 lg:py-2 py-0.5">{title}</h1>    
+                <div class="gradient h-full w-full"></div>
             </div>
         </div>
     </div>
 
+    <ul id="students" class="py-12 flex justify-center gap-2">
+        {students.map(student => (
+            <li>
+                <a class="border-2 w-24 flex flex-col justify-between bg-black text-center border-white" href={`/@${convertToUrl(student.data.name)}`}>
+                    <p class="px-2 underline break-words">
+                        {student.data.name}
+                    </p>
+
+                    <div class="profile-container w-full min-h-20 ">
+                    {student.data.image ? (
+                        <Image quality="dither-small" src={student.data.image} alt={`Profile picture of ${student.data.name}`}></Image>
+                    ) : (
+                        <Image quality="dither-small" src={fallbackImage} alt=""/>
+                    )}
+                    </div>
+                </a>
+            </li>
+        ))}
+    </ul>
     
     <article class="pb-24">
         
@@ -91,6 +112,16 @@ const { Content } = await render(project)
 </Layout>
 
 <style is:global>
+    .gradient {
+        background: linear-gradient(#ffffff, blue, black)
+    }
+
+    #students {
+        max-width: 90ch;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    
     article {
         background-color: black;
         max-width: 72ch;
@@ -102,6 +133,12 @@ const { Content } = await render(project)
     aspect-ratio: 16 / 9;
     object-fit: cover;
     width: 100%;
+   }
+
+   .profile-container > img {
+        object-fit: cover;
+        width: 100%;
+        aspect-ratio: 1 / 1;
    }
     
 </style>

@@ -5,6 +5,7 @@ import convertToUrl from "../lib/convertUrl";
 import Layout from "../layouts/Layout.astro";
 import { render } from "astro:content";
 import { Image } from "astro:assets";
+import fallbackImage from "@assets/fallback.svg"
 
 export const getStaticPaths = (async () => {
 	const students = await getCollection("students")
@@ -31,7 +32,7 @@ if(!student) {
 }
 
 const projects = await getCollection("projects")
-const studentWork = projects.find(project => project.data.students.includes(String(id)))
+const studentWorks = projects.filter(project => project.data.students.includes(String(id)))
 
 const { data: { name, links, image }} = student
 
@@ -41,28 +42,57 @@ const { Content } = await render(student)
 
 
 <Layout>
-    <h1>{name}</h1>
 
-    {studentWork && (
-        <div class="work">
-            {image && (
+
+    <div class="w-full grid grid-cols-[auto_33ch_33ch_auto] grid-rows-2 py-24">
+        <div class="row-start-1 col-end-5 col-start-1 border-b-white border-b-2"></div>
+        
+        <div class="border-2 border-white col-start-2 row-start-1 row-end-3">
+            {image ? (
                 <Image quality={"dither"} width={1024}  src={image} alt=""></Image>
+            ) : (
+                <Image quality="dither" src={fallbackImage} alt=""/>
             )}
-            <a href={`/projects/${convertToUrl(studentWork.data.title)}`}>{studentWork.data.title }</a>
         </div>
-    )}
-    <ul>
-        {Object.entries(links).map(([link, url]) => (
-            <li>
-                <a href={link === "instagram" ? `https://instagram.com/${url}` : link} >
-                    
-                    {link}
-                </a>
-            </li>
-        ))}
-    </ul>
+        
+        <div class="text-3xl row-start-2 col-start-3">
+            <h1 class=" p-2 uppercase">{name}</h1>
 
-    <Content/>
+        </div>
+    </div>
+
+    <div class="w-full grid grid-cols-[auto_66ch_auto]">
+        <main class="col-start-2">
+            <ul>
+                {Object.entries(links).map(([link, url]) => (
+                    <li>
+                        <a href={link === "instagram" ? `https://instagram.com/${url}` : url} >
+                            
+                            {link}
+                        </a>
+                    </li>
+                ))}
+            </ul>
+            <article class="mx-auto max-w-[65ch]">
+                <Content/>
+            </article>
+        </main>
+
+
+        <div class="col-start-2">
+            {studentWorks.map(({data: {title, image}}) => (
+                <div class="work">
+                    <a href={`/projects/${convertToUrl(title)}`}>
+                        {title}
+                        {image && (
+                            <Image src={image} alt="" />
+                        )}
+                    </a>
+                </div>
+            ))}
+        </div>
+    </div>
+    
 </Layout>
 
 <style>
