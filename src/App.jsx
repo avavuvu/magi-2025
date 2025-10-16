@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls, Html, Clouds, Cloud } from '@react-three/drei'
-import { EffectComposer, DepthOfField, Bloom, Noise, Vignette } from '@react-three/postprocessing'
+import { EffectComposer, Bloom, Noise, Vignette } from '@react-three/postprocessing'
 import * as THREE from 'three'
 import { OrbitalSystem, SearchBar } from './OrbitalSystem' // Import both components
 import ProfileDatabase from './ProfileDatabase'
@@ -21,32 +21,24 @@ function ArchiveDropdown() {
       className="archive-dropdown-container" 
       onMouseLeave={handleMouseLeave}
       style={{ position: 'relative', display: 'inline-block' }}
+      onMouseEnter={() => setIsDropdownOpen(true)}
     >
-      {/* Main 2024 Archive Button */}
+      {/* Main Archive Button */}
       <div 
         style={{ position: 'relative' }}
-        onMouseEnter={() => setIsDropdownOpen(true)}
       >
-        <a href="https://magiexpo.squarespace.com/" target="_blank" rel="noopener noreferrer">
-          <button className="ui-button">
-            2024 ARCHIVE ▼
-          </button>
-        </a>
-        
-        {/* Dropdown Arrow Indicator */}
-        <div 
+        <button 
+          className="ui-button vertical"
           style={{
-            position: 'absolute',
-            right: '8px',
-            top: '50%',
-            transform: 'translateY(-50%)',
-            pointerEvents: 'none',
-            color: 'inherit',
-            fontSize: '12px'
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px'
           }}
         >
-          ▼
-        </div>
+          <span>ARCHIVE</span>
+          <span>▶</span>
+        </button>
       </div>
 
       {/* Dropdown Menu */}
@@ -54,32 +46,60 @@ function ArchiveDropdown() {
         <div 
           style={{
             position: 'absolute',
-            top: '100%',
-            left: 0,
-            right: 0,
+            top: 0,
+            left: 'calc(100% + 2px)',
             backgroundColor: 'inherit',
             border: '1px solid #ccc',
-            borderTop: 'none',
+            borderLeft: 'none',
             zIndex: 1000,
-            boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+            boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+            display: 'flex',
+            flexDirection: 'row',
+            gap: '0',
+            height: '100%'
           }}
         >
+          <a 
+            href="https://magiexpo.squarespace.com/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            style={{ textDecoration: 'none', display: 'block', height: '100%' }}
+          >
+            <button 
+              className="ui-button vertical"
+              style={{
+                height: '100%',
+                minWidth: '60px',
+                border: 'none',
+                borderRight: '1px solid #ccc',
+                borderRadius: 0,
+                margin: 0,
+                padding: '0 16px'
+              }}
+            >
+              2024
+            </button>
+          </a>
+          
           <a 
             href="https://magiexpo.squarespace.com/magiexpo-2023" 
             target="_blank" 
             rel="noopener noreferrer"
-            style={{ textDecoration: 'none', display: 'block' }}
+            style={{ textDecoration: 'none', display: 'block', height: '100%' }}
           >
             <button 
-              className="ui-button"
+              className="ui-button vertical"
               style={{
-                width: '100%',
+                height: '100%',
+                minWidth: '60px',
                 border: 'none',
-                borderBottom: '1px solid #eee',
-                borderRadius: 0
+                borderRight: '1px solid #ccc',
+                borderRadius: 0,
+                margin: 0,
+                padding: '0 16px'
               }}
             >
-              2023 ARCHIVE
+              2023
             </button>
           </a>
           
@@ -87,17 +107,20 @@ function ArchiveDropdown() {
             href="https://pasteleftdane.github.io/" 
             target="_blank" 
             rel="noopener noreferrer"
-            style={{ textDecoration: 'none', display: 'block' }}
+            style={{ textDecoration: 'none', display: 'block', height: '100%' }}
           >
             <button 
-              className="ui-button"
+              className="ui-button vertical"
               style={{
-                width: '100%',
+                height: '100%',
+                minWidth: '60px',
                 border: 'none',
-                borderRadius: 0
+                borderRadius: 0,
+                margin: 0,
+                padding: '0 16px'
               }}
             >
-              2022 ARCHIVE
+              2022
             </button>
           </a>
         </div>
@@ -135,7 +158,7 @@ function AtmosphericSky() {
           fade={50}
           growth={5}
           bounds={[0.1, 0.1, 0.1]}
-          color="#e9359eff"
+          color="#e9359e"
           position={[0, 0, 0]}
         />
       </Clouds>
@@ -189,35 +212,21 @@ export default function App() {
             />
           </div>
          
-          {/* Commented out original search - now using separate SearchBar component */}
-          {/* <div className="nav-section center">
-            <div className={`search-container ${isSearchFocused ? 'focused' : ''}`}>
-              <input
-                type="text"
-                placeholder="Search projects, students, disciplines..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => setIsSearchFocused(true)}
-                onBlur={() => setIsSearchFocused(false)}
-                className="search-input"
-              />
-            </div>
-          </div>     */}
-         
           <div className="nav-section right">
-            {/* Replace the old button with the new dropdown */}
-            <ArchiveDropdown />
+            {/* Profiles button moved to top right */}
+            <button 
+              className="ui-button"
+              onClick={() => setCurrentPage('profiles')}
+            >
+              PROFILES
+            </button>
           </div>
         </div>
         
         {/* Side navigation */}
         <div className="side-nav" style={{ pointerEvents: 'auto' }}>
-          <button 
-            className="ui-button vertical"
-            onClick={() => setCurrentPage('profiles')}
-          >
-            PROFILES
-          </button>
+          {/* Archive dropdown moved to side nav */}
+          <ArchiveDropdown />
           <button className="ui-button vertical">
             ABOUT
           </button>
@@ -236,8 +245,7 @@ export default function App() {
               style={{
                 width: '160px',
                 height: '30px',
-                background: 'linear-gradient(90deg, #001f3f, #0074D9, #7FDBFF, #ffffff)',
-              //  borderRadius: '3px',
+                background: 'linear-gradient(90deg, #0074D9, #00ffcc)',
                 border: '1px solid white',
                 position: 'relative',
                 overflow: 'hidden',
@@ -257,7 +265,7 @@ export default function App() {
                     rgba(255, 255, 255, 0.3) 0%, 
                     transparent 50%
                   ),
-                 linear-gradient(90deg, #001f3f, #0074D9, #7FDBFF, #ffffff)'
+                 linear-gradient(90deg, #001f3f, #0074D9, #7FDBFF, #ffffff);'
                 `;
                 
                 // Create sparkle
@@ -304,7 +312,7 @@ export default function App() {
                 ORBITS MAGI EXPO 2025
               </div>
               
-              <style jsx>{`
+              <style>{`
                 @keyframes marquee {
                   0% { transform: translateX(160px); }
                   100% { transform: translateX(-100%); }
@@ -339,40 +347,51 @@ export default function App() {
         </div>
       </div>
       
-      <Canvas camera={{ position: [8, 6, 8], fov: 35 }}>
-        {/* Enhanced fog for atmospheric depth */}
-        <fog attach="fog" args={['#1a1a2e', 8, 25]} />
+      <Canvas 
+        camera={{ position: [8, 8, 8], fov: 35 }}
+        dpr={[1, 1.5]}
+        performance={{ min: 0.5 }}
+        gl={{ 
+          antialias: true,
+          powerPreference: "high-performance"
+        }}
+      >
+        {/* Black background with atmospheric fog */}
+        <color attach="background" args={['#000000']} />
+        <fog attach="fog" args={['#000000', 8, 25]} />
        
-        {/* Enhanced ambient lighting */}
-        <ambientLight intensity={3} color="#e6f3ff" />
-        <directionalLight position={[10, 10, 5]} intensity={1.2} color="#ffffff" />
-        <pointLight position={[-10, -10, -10]} intensity={0.5} color="#ffd700" />
-        <pointLight position={[5, -5, 10]} intensity={0.3} color="#ff6b6b" />
+        {/* Optimized lighting */}
+        <ambientLight intensity={2.5} color="#e6f3ff" />
+        <directionalLight position={[10, 10, 5]} intensity={1} color="#ffffff" />
+        <pointLight position={[-10, -10, -10]} intensity={0.4} color="#ffd700" />
+        <pointLight position={[5, -5, 10]} intensity={0.25} color="#ff6b6b" />
        
         {/* Atmospheric cloud system */}
         <AtmosphericSky />
        
-        {/* Complete orbital system with central sphere and orbiting planets - now passes searchTerm */}
+        {/* Complete orbital system with central sphere and orbiting planets */}
         <OrbitalSystem searchTerm={searchTerm} />
        
-        <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} />
+        <OrbitControls 
+          enablePan={true} 
+          enableZoom={true} 
+          enableRotate={true}
+          enableDamping={true}
+          dampingFactor={0.05}
+        />
        
-        {/* Post-processing effects */}
-        <EffectComposer>
-          <DepthOfField
-            focusDistance={0.2}
-            focalLength={0.1}
-            bokehScale={2}
-            //height={500}
-          />
+        {/* Optimized post-processing effects */}
+        <EffectComposer multisampling={0}>
           <Bloom
-            intensity={0.1}
+            intensity={0.08}
             luminanceThreshold={0.9}
             luminanceSmoothing={0.9}
+            mipmapBlur
           />
           <Noise 
-            opacity={1}
-            premultiply />
+            opacity={0.8}
+            premultiply 
+          />
           <Vignette eskil={false} offset={0.5} darkness={0.6} />
         </EffectComposer>
       </Canvas>
