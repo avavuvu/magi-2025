@@ -238,18 +238,18 @@ body {
 .profile-container {
   position: fixed;
   top: 50%;
-  right: 100px;
+  right: 200px;
   transform: translateY(-10%);
   z-index: 1000;
 }
 
 .profile-card {
-  background: rgb(61, 61, 61);
-  border-radius: 0px;
-  padding: 20px;
-  width: 300px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-  border: 1px solid #e0e0e0;
+  background: rgba(0, 10, 10, 0.95);
+  border-radius: 12px;
+  padding: 24px;
+  width: 200px;
+  box-shadow: 0 0 30px rgba(0, 255, 157, 0.4), 0 0 60px rgba(0, 255, 157, 0.2), inset 0 0 20px rgba(0, 255, 157, 0.1);
+  border: 2px solid rgba(0, 255, 157, 0.6);
   animation: slideIn 0.3s ease-out;
   font-family: "Lucida Console", "Courier New", monospace;
 }
@@ -259,47 +259,52 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 2px solid rgba(0, 255, 157, 0.3);
   padding-bottom: 12px;
   font-family: "Lucida Console", "Courier New", monospace;
 }
 
 .profile-header h3 {
   margin: 0;
-  color: #ffffff;
+  color: #00ff9d;
   font-size: 1.2em;
+  text-shadow: 0 0 10px rgba(0, 255, 157, 0.8), 0 0 20px rgba(0, 255, 157, 0.4);
+  letter-spacing: 0.5px;
 }
 
 .close-btn {
-  background: none;
-  border: none;
+  background: rgba(0, 255, 157, 0.1);
+  border: 1px solid rgba(0, 255, 157, 0.4);
+  border-radius: 4px;
   font-size: 20px;
   cursor: pointer;
-  color: #ffffff;
+  color: #00ff9d;
   padding: 0;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
   transition: all 0.2s;
+  box-shadow: 0 0 10px rgba(0, 255, 157, 0.3);
 }
 
 .close-btn:hover {
-  background: #f0f0f0;
-  color: #333;
+  background: rgba(0, 255, 157, 0.2);
+  box-shadow: 0 0 15px rgba(0, 255, 157, 0.5);
+  color: #00ff9d;
 }
 
 .profile-content p {
   margin: 8px 0;
-  color: #ffffff;
-  line-height: 1.4;
+  color: #b8ffd9;
+  line-height: 1.5;
   font-size: 0.9em;
 }
 
 .profile-content strong {
-  color: #ffffff;
+  color: #00ff9d;
+  text-shadow: 0 0 5px rgba(0, 255, 157, 0.5);
 }
 
 @keyframes slideIn {

@@ -1,32 +1,21 @@
-import { useState, useRef } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
-import { OrbitControls, Html, Clouds, Cloud } from '@react-three/drei'
-import { EffectComposer, Bloom, Noise, Vignette } from '@react-three/postprocessing'
+import { useState, useCallback, useMemo } from 'react'
+import { Canvas } from '@react-three/fiber'
+import { OrbitControls } from '@react-three/drei'
+import { OrbitalSystem, SearchBar } from './OrbitalSystem'
 import * as THREE from 'three'
-import { OrbitalSystem, SearchBar } from './OrbitalSystem' // Import both components
-import ProfileDatabase from './ProfileDatabase'
-import QuestTracker from './Quests' // Import your Quest Tracker
-
 
 // Archive Dropdown Component
 function ArchiveDropdown() {
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
-  const handleMouseLeave = () => {
-    setIsDropdownOpen(false);
-  };
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
   return (
     <div 
       className="archive-dropdown-container" 
-      onMouseLeave={handleMouseLeave}
+      onMouseLeave={() => setIsDropdownOpen(false)}
       style={{ position: 'relative', display: 'inline-block' }}
       onMouseEnter={() => setIsDropdownOpen(true)}
     >
-      {/* Main Archive Button */}
-      <div 
-        style={{ position: 'relative' }}
-      >
+      <div style={{ position: 'relative' }}>
         <button 
           className="ui-button vertical"
           style={{
@@ -41,7 +30,6 @@ function ArchiveDropdown() {
         </button>
       </div>
 
-      {/* Dropdown Menu */}
       {isDropdownOpen && (
         <div 
           style={{
@@ -59,135 +47,70 @@ function ArchiveDropdown() {
             height: '100%'
           }}
         >
-          <a 
-            href="https://magiexpo.squarespace.com/" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            style={{ textDecoration: 'none', display: 'block', height: '100%' }}
-          >
-            <button 
-              className="ui-button vertical"
-              style={{
-                height: '100%',
-                minWidth: '60px',
-                border: 'none',
-                borderRight: '1px solid #ccc',
-                borderRadius: 0,
-                margin: 0,
-                padding: '0 16px'
-              }}
+          {[
+            { year: '2024', url: 'https://magiexpo.squarespace.com/' },
+            { year: '2023', url: 'https://magiexpo.squarespace.com/magiexpo-2023' },
+            { year: '2022', url: 'https://pasteleftdane.github.io/' }
+          ].map(({ year, url }) => (
+            <a 
+              key={year}
+              href={url}
+              target="_blank" 
+              rel="noopener noreferrer"
+              style={{ textDecoration: 'none', display: 'block', height: '100%' }}
             >
-              2024
-            </button>
-          </a>
-          
-          <a 
-            href="https://magiexpo.squarespace.com/magiexpo-2023" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            style={{ textDecoration: 'none', display: 'block', height: '100%' }}
-          >
-            <button 
-              className="ui-button vertical"
-              style={{
-                height: '100%',
-                minWidth: '60px',
-                border: 'none',
-                borderRight: '1px solid #ccc',
-                borderRadius: 0,
-                margin: 0,
-                padding: '0 16px'
-              }}
-            >
-              2023
-            </button>
-          </a>
-          
-          <a 
-            href="https://pasteleftdane.github.io/" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            style={{ textDecoration: 'none', display: 'block', height: '100%' }}
-          >
-            <button 
-              className="ui-button vertical"
-              style={{
-                height: '100%',
-                minWidth: '60px',
-                border: 'none',
-                borderRadius: 0,
-                margin: 0,
-                padding: '0 16px'
-              }}
-            >
-              2022
-            </button>
-          </a>
+              <button 
+                className="ui-button vertical"
+                style={{
+                  height: '100%',
+                  minWidth: '60px',
+                  border: 'none',
+                  borderRight: '1px solid #ccc',
+                  borderRadius: 0,
+                  margin: 0,
+                  padding: '0 16px'
+                }}
+              >
+                {year}
+              </button>
+            </a>
+          ))}
         </div>
       )}
     </div>
-  );
-}
-
-// Enhanced Sky component with atmospheric clouds
-function AtmosphericSky() {
-  const cloudsRef = useRef()
-  const mainCloudRef = useRef()
-
-  useFrame((state, delta) => {
-    const elapsedTime = state.clock.elapsedTime;
-    if (cloudsRef.current) {
-      cloudsRef.current.rotation.y = Math.cos(elapsedTime / 4) / 4
-      cloudsRef.current.rotation.x = Math.sin(elapsedTime / 6) / 6
-    }
-    if (mainCloudRef.current) {
-      mainCloudRef.current.rotation.y -= delta * 0.1
-    }
-  })
-
-  return (
-    <group ref={cloudsRef}>
-      <Clouds material={THREE.MeshLambertMaterial} limit={500} range={1}>
-        {/* Main central cloud mass */}
-        <Cloud
-          ref={mainCloudRef}  
-          seed={1}
-          segments={1}
-          volume={15}
-          opacity={0.01}
-          fade={50}
-          growth={5}
-          bounds={[0.1, 0.1, 0.1]}
-          color="#e9359e"
-          position={[0, 0, 0]}
-        />
-      </Clouds>
-    </group>
   )
 }
 
 export default function App() {
-  // Add search state management
   const [searchTerm, setSearchTerm] = useState('')
-  const [currentPage, setCurrentPage] = useState('home')
   
-  // Handle different page states
-  if (currentPage === 'profiles') {
-    return <ProfileDatabase onNavigateHome={() => setCurrentPage('home')} />
-  }
-  
-  if (currentPage === 'quest') {
-    return <QuestTracker onNavigateHome={() => setCurrentPage('home')} />
-  }
+  const handleSearchChange = useCallback((value) => {
+    setSearchTerm(value)
+  }, [])
+
+  // Memoize camera settings
+  const cameraSettings = useMemo(() => ({
+    position: [8, 8, 8],
+    fov: 35,
+    near: 0.1,
+    far: 1000
+  }), [])
+
+  // Memoize GL settings
+  const glSettings = useMemo(() => ({
+    antialias: false, // TURN OFF for performance
+    powerPreference: "high-performance",
+    alpha: false,
+    stencil: false,
+    depth: true,
+    preserveDrawingBuffer: false
+  }), [])
 
   return (
-    <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
-      {/* Search bar - positioned outside Canvas to stay fixed */}
-      <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} />
+    <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
+      <SearchBar searchTerm={searchTerm} onSearchChange={handleSearchChange} />
 
-      {/* Minimal UI Overlay */}
       <div className="ui-overlay">
-        {/* Top navigation bar */}
         <div className="top-nav">
           <div className="nav-section">
             <img 
@@ -196,10 +119,10 @@ export default function App() {
               style={{
                 height: '60px',
                 width: 'auto',
-                scale: '100%',
                 cursor: 'pointer',
                 filter: 'brightness(1.2)',
-                transition: 'all 0.3s ease'
+                transition: 'filter 0.3s ease, transform 0.3s ease',
+                willChange: 'transform'
               }}
               onMouseEnter={(e) => {
                 e.target.style.filter = 'brightness(1.5) drop-shadow(0 0 10px rgba(255,255,255,0.3))'
@@ -213,29 +136,18 @@ export default function App() {
           </div>
          
           <div className="nav-section right">
-            {/* Profiles button moved to top right */}
-            <button 
-              className="ui-button"
-              onClick={() => setCurrentPage('profiles')}
-            >
+            <button className="ui-button">
               PROFILES
             </button>
           </div>
         </div>
         
-        {/* Side navigation */}
         <div className="side-nav" style={{ pointerEvents: 'auto' }}>
-          {/* Archive dropdown moved to side nav */}
           <ArchiveDropdown />
-          <button className="ui-button vertical">
-            ABOUT
-          </button>
-          <button className="ui-button vertical">
-            CONTACT
-          </button>
+          <button className="ui-button vertical">ABOUT</button>
+          <button className="ui-button vertical">CONTACT</button>
         </div>
         
-        {/* Bottom info bar */}
         <div className="bottom-nav" style={{ pointerEvents: 'auto' }}>
           <div className="info-section">
             <span className="info-text">Masters of Animation, Games & Interactivity</span>
@@ -245,7 +157,7 @@ export default function App() {
               style={{
                 width: '160px',
                 height: '30px',
-                background: 'linear-gradient(90deg, #0074D9, #00ffcc)',
+                background: 'linear-gradient(90deg, #0074D9, #00CED1, #7FFFD4)',
                 border: '1px solid white',
                 position: 'relative',
                 overflow: 'hidden',
@@ -253,49 +165,7 @@ export default function App() {
                 display: 'flex',
                 alignItems: 'center'
               }}
-              onMouseMove={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                const percentage = (x / rect.width) * 100;
-                
-                // Update gradient
-                e.currentTarget.style.background = `
-                  radial-gradient(circle at ${percentage}% 50%, 
-                    rgba(255, 255, 255, 0.3) 0%, 
-                    transparent 50%
-                  ),
-                 linear-gradient(90deg, #001f3f, #0074D9, #7FDBFF, #ffffff);'
-                `;
-                
-                // Create sparkle
-                const sparkle = document.createElement('div');
-                sparkle.style.position = 'absolute';
-                sparkle.style.left = `${x}px`;
-                sparkle.style.top = `${y}px`;
-                sparkle.style.width = '3px';
-                sparkle.style.height = '3px';
-                sparkle.style.backgroundColor = 'white';
-                sparkle.style.borderRadius = '50%';
-                sparkle.style.pointerEvents = 'none';
-                sparkle.style.animation = 'sparkleAnimation 0.6s ease-out forwards';
-                sparkle.style.transform = 'translate(-50%, -50%)';
-                sparkle.style.zIndex = '10';
-                
-                e.currentTarget.appendChild(sparkle);
-                
-                // Remove sparkle after animation
-                setTimeout(() => {
-                  if (sparkle.parentNode) {
-                    sparkle.parentNode.removeChild(sparkle);
-                  }
-                }, 600);
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'linear-gradient(90deg, #001f3f, #0074D9, #7FDBFF, #ffffff)';
-              }}
             >
-              {/* Marquee text overlay */}
               <div
                 style={{
                   position: 'absolute',
@@ -303,10 +173,10 @@ export default function App() {
                   color: 'white',
                   fontSize: '12px',
                   fontFamily: 'monospace',
-                  fontWeight: 'heavy',
+                  fontWeight: 'bold',
                   letterSpacing: '1px',
                   animation: 'marquee 10s linear infinite',
-                  zIndex: '5'
+                  zIndex: 5
                 }}
               >
                 ORBITS MAGI EXPO 2025
@@ -317,59 +187,46 @@ export default function App() {
                   0% { transform: translateX(160px); }
                   100% { transform: translateX(-100%); }
                 }
-                @keyframes sparkleAnimation {
-                  0% { 
-                    opacity: 1; 
-                    transform: translate(-50%, -50%) scale(0); 
-                  }
-                  50% { 
-                    opacity: 1; 
-                    transform: translate(-50%, -50%) scale(1.5); 
-                  }
-                  100% { 
-                    opacity: 0; 
-                    transform: translate(-50%, -50%) scale(0); 
-                  }
-                }
               `}</style>
             </div>
-            {/* Modified HELP button to open Quest Tracker */}
-            <button 
-              className="ui-button small"
-              onClick={() => setCurrentPage('quest')}
-            >
-              HELP
-            </button>
-            <button className="ui-button small">
-              FULL SCREEN
-            </button>
+            <img 
+              src="/magilogo.svg" 
+              alt="MAGI" 
+              style={{
+                height: '28px',
+                width: 'auto',
+                filter: 'brightness(0) invert(1)',
+                opacity: 0.9,
+                transition: 'opacity 0.3s ease'
+              }}
+              onMouseEnter={(e) => e.target.style.opacity = '1'}
+              onMouseLeave={(e) => e.target.style.opacity = '0.9'}
+            />
           </div>
         </div>
       </div>
       
       <Canvas 
-        camera={{ position: [8, 8, 8], fov: 35 }}
-        dpr={[1, 1.5]}
+        camera={cameraSettings}
+        dpr={[1, Math.min(window.devicePixelRatio, 2)]}
         performance={{ min: 0.5 }}
-        gl={{ 
-          antialias: true,
-          powerPreference: "high-performance"
-        }}
+        gl={{
+    ...glSettings,
+    toneMapping: THREE.NoToneMapping // ✅ Added for better performance
+  }}
+        frameloop="always"
+        flat
+        linear
       >
-        {/* Black background with atmospheric fog */}
         <color attach="background" args={['#000000']} />
         <fog attach="fog" args={['#000000', 8, 25]} />
        
-        {/* Optimized lighting */}
+        {/* Simplified lighting - no shadows */}
         <ambientLight intensity={2.5} color="#e6f3ff" />
         <directionalLight position={[10, 10, 5]} intensity={1} color="#ffffff" />
         <pointLight position={[-10, -10, -10]} intensity={0.4} color="#ffd700" />
         <pointLight position={[5, -5, 10]} intensity={0.25} color="#ff6b6b" />
        
-        {/* Atmospheric cloud system */}
-        <AtmosphericSky />
-       
-        {/* Complete orbital system with central sphere and orbiting planets */}
         <OrbitalSystem searchTerm={searchTerm} />
        
         <OrbitControls 
@@ -378,22 +235,10 @@ export default function App() {
           enableRotate={true}
           enableDamping={true}
           dampingFactor={0.05}
+          maxDistance={20}
+          minDistance={3}
+          makeDefault
         />
-       
-        {/* Optimized post-processing effects */}
-        <EffectComposer multisampling={0}>
-          <Bloom
-            intensity={0.08}
-            luminanceThreshold={0.9}
-            luminanceSmoothing={0.9}
-            mipmapBlur
-          />
-          <Noise 
-            opacity={0.8}
-            premultiply 
-          />
-          <Vignette eskil={false} offset={0.5} darkness={0.6} />
-        </EffectComposer>
       </Canvas>
     </div>
   )

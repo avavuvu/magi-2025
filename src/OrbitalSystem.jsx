@@ -1,5 +1,5 @@
-import { useRef, useState, useEffect, useMemo } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useRef, useState, useEffect, useMemo, memo } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
 import { Line, Html, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { useAsteroidData } from './ProfileSystem'
@@ -10,28 +10,122 @@ useGLTF.preload('/AnimationsModel.glb')
 useGLTF.preload('/GamesModel.glb')
 useGLTF.preload('/InteractiveModel.glb')
 
-// GLB Model Component for Orbiting Sphere
-function GLBOrbitingSphere({ 
+// Shared materials cache
+const sharedMaterials = {
+  asteroid: null,
+  planet: null
+}
+
+// Initialize shared materials once
+function getSharedMaterial(type) {
+  if (!sharedMaterials[type]) {
+    if (type === 'asteroid') {
+      sharedMaterials.asteroid = new THREE.MeshStandardMaterial({
+        color: '#ffffff',
+        metalness: 0.2,
+        roughness: 0.5,
+        emissive: new THREE.Color(0xffffff),
+        emissiveIntensity: 1,
+        vertexColors: true,
+        precision: 'mediump',
+        fog: true
+      })
+    } else if (type === 'planet') {
+      sharedMaterials.planet = new THREE.MeshStandardMaterial({
+        color: '#ffffff',
+        metalness: 0.01,
+        roughness: 2,
+        emissive: new THREE.Color('#ffffffff'),
+        emissiveIntensity: 0.6,
+        precision: 'mediump',
+        fog: true
+      })
+    }
+  }
+  return sharedMaterials[type]
+}
+
+// CRITICAL: Texture optimizer
+function optimizeGLBTextures(scene) {
+  scene.traverse((child) => {
+    if (child.isMesh && child.material) {
+      const materials = Array.isArray(child.material) ? child.material : [child.material]
+      
+      materials.forEach(mat => {
+        const textureProps = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap']
+        
+        textureProps.forEach(prop => {
+          if (mat[prop]) {
+            const texture = mat[prop]
+            texture.anisotropy = 1
+            texture.minFilter = THREE.LinearMipmapLinearFilter
+            texture.magFilter = THREE.LinearFilter
+            texture.generateMipmaps = true
+            texture.needsUpdate = true
+          }
+        })
+        
+        mat.precision = 'mediump'
+        mat.fog = true
+      })
+      
+      child.frustumCulled = true
+    }
+  })
+}
+
+// ✅ HIGH PRIORITY FIX #2: Performance Regression Trigger
+const PerformanceRegressor = memo(() => {
+  const regress = useThree((state) => state.performance.regress)
+  const controls = useThree((state) => state.controls)
+  
+  useEffect(() => {
+    if (!controls) return
+    
+    const handleChange = () => {
+      regress()
+    }
+    
+    controls.addEventListener('change', handleChange)
+    
+    return () => {
+      controls.removeEventListener('change', handleChange)
+    }
+  }, [controls, regress])
+  
+  return null
+})
+
+PerformanceRegressor.displayName = 'PerformanceRegressor'
+
+// GLB Model Component - MEMOIZED with invalidate support
+const GLBOrbitingSphere = memo(({ 
   modelPath, 
   radius, 
   speed, 
   initialAngle, 
   label, 
- // description, 
-  hasMoon = false,
   scale = 1 
-}) {
+}) => {
   const { scene } = useGLTF(modelPath)
-  const modelRef = useRef()
-  const [planetPosition, setPlanetPosition] = useState({ x: 0, y: 0, z: 0 })
+  const groupRef = useRef()
+  const invalidate = useThree((state) => state.invalidate)
   
   const clonedScene = useMemo(() => {
     const cloned = scene.clone()
-    // Ensure all materials and geometries are marked for reuse
+    optimizeGLBTextures(cloned)
+    
     cloned.traverse((child) => {
       if (child.isMesh) {
         if (child.geometry) {
           child.geometry.computeBoundingSphere()
+        }
+        if (child.material) {
+          const materials = Array.isArray(child.material) ? child.material : [child.material]
+          materials.forEach(mat => {
+            mat.emissive = new THREE.Color(0x00ff88)
+            mat.emissiveIntensity = 0.5
+          })
         }
       }
     })
@@ -39,96 +133,62 @@ function GLBOrbitingSphere({
   }, [scene])
 
   useEffect(() => {
-    const sceneToCleanup = clonedScene
+    // Initial position setup
+    if (groupRef.current) {
+      const angle = initialAngle
+      const newX = Math.cos(angle) * radius
+      const newZ = Math.sin(angle) * radius
+      groupRef.current.position.set(newX, 0, newZ)
+      invalidate()
+    }
+    
     return () => {
-      // Cleanup cloned scene
-      if (sceneToCleanup) {
-        sceneToCleanup.traverse((child) => {
-          if (child.geometry) {
-            child.geometry.dispose()
-          }
+      if (clonedScene) {
+        clonedScene.traverse((child) => {
+          if (child.geometry) child.geometry.dispose()
           if (child.material) {
-            if (Array.isArray(child.material)) {
-              child.material.forEach(material => {
-                if (material.map) material.map.dispose()
-                if (material.lightMap) material.lightMap.dispose()
-                if (material.bumpMap) material.bumpMap.dispose()
-                if (material.normalMap) material.normalMap.dispose()
-                if (material.specularMap) material.specularMap.dispose()
-                if (material.envMap) material.envMap.dispose()
-                material.dispose()
+            const materials = Array.isArray(child.material) ? child.material : [child.material]
+            materials.forEach(material => {
+              Object.keys(material).forEach(key => {
+                if (material[key]?.isTexture) {
+                  material[key].dispose()
+                }
               })
-            } else {
-              if (child.material.map) child.material.map.dispose()
-              if (child.material.lightMap) child.material.lightMap.dispose()
-              if (child.material.bumpMap) child.material.bumpMap.dispose()
-              if (child.material.normalMap) child.material.normalMap.dispose()
-              if (child.material.specularMap) child.material.specularMap.dispose()
-              if (child.material.envMap) child.material.envMap.dispose()
-              child.material.dispose()
-            }
+              material.dispose()
+            })
           }
         })
       }
-      document.body.style.cursor = 'default'
     }
-  }, [clonedScene])
+  }, [clonedScene, initialAngle, radius, invalidate])
   
-  useFrame((state, delta) => {
-    if (modelRef.current) {
-      const time = state.clock.elapsedTime
-      const angle = time * speed + initialAngle
-      
-      const newX = Math.cos(angle) * radius
-      const newZ = Math.sin(angle) * radius
-      const newY = 0
-      
-      modelRef.current.position.set(newX, newY, newZ)
-      
-      setPlanetPosition({ x: newX, y: newY, z: newZ })
-      
-      modelRef.current.rotation.y += delta * 0.5
-      
-      // Apply neon green emissive to all materials in the model
-      modelRef.current.traverse((child) => {
-        if (child.isMesh && child.material) {
-          if (Array.isArray(child.material)) {
-            child.material.forEach(mat => {
-              mat.emissive = new THREE.Color(0x00ff88)
-              mat.emissiveIntensity = 0.5
-            })
-          } else {
-            child.material.emissive = new THREE.Color(0x00ff88)
-            child.material.emissiveIntensity = 0.5
-          }
-        }
-      })
-    }
+  // Animation loop - runs every frame for smooth orbiting
+  useFrame((state) => {
+    if (!groupRef.current) return
+    
+    const time = state.clock.elapsedTime
+    const angle = time * speed + initialAngle
+    
+    const newX = Math.cos(angle) * radius
+    const newZ = Math.sin(angle) * radius
+    
+    groupRef.current.position.set(newX, 0, newZ)
+    groupRef.current.rotation.y = time * 0.1
+    
+    invalidate()
   })
 
   return (
-    <group>
-      <primitive 
-        ref={modelRef} 
-        object={clonedScene} 
-        scale={scale}
-      />
+    <group ref={groupRef}>
+      <primitive object={clonedScene} scale={scale} />
       
-      {/* Label line - horizontal from model center */}
       <Line
-        points={[
-          [planetPosition.x, planetPosition.y, planetPosition.z],
-          [planetPosition.x + 1.2, planetPosition.y, planetPosition.z]
-        ]}
+        points={[[0, 0, 0], [1.2, 0, 0]]}
         color="#ffffff"
         lineWidth={1}
       />
       
-      <Html 
-        position={[planetPosition.x + 1.2, planetPosition.y, planetPosition.z]} 
-        distanceFactor={8}
-        center
-      >
+      <Html position={[1.2, 0, 0]} distanceFactor={8} center>
         <div style={{
           background: 'rgba(233, 53, 158, 0.9)',
           border: '2px solid rgba(233, 53, 158, 1)',
@@ -147,88 +207,126 @@ function GLBOrbitingSphere({
           {label}
         </div>
       </Html>
-      
-      {hasMoon && <MoonSystem parentPosition={planetPosition} />}
     </group>
   )
-}
+})
 
-// Central Sphere Component
-function CentralSphere() {
+GLBOrbitingSphere.displayName = 'GLBOrbitingSphere'
+
+// Central Sphere - MEMOIZED with invalidate
+const CentralSphere = memo(() => {
   const meshRef = useRef()
-  const materialRef = useRef()
-  const geometryRef = useRef()
+  const invalidate = useThree((state) => state.invalidate)
   
-  useEffect(() => {
-    const material = materialRef.current
-    const geometry = geometryRef.current
-    return () => {
-      if (material) material.dispose()
-      if (geometry) geometry.dispose()
-    }
-  }, [])
-  
+  // Animation loop - runs every frame for smooth rotation
   useFrame((state) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.y += 0.005
-      meshRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.5) * 0.1
-    }
+    if (!meshRef.current) return
+    
+    meshRef.current.rotation.y += 0.005
+    meshRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.5) * 0.1
+    
+    invalidate()
   })
 
   return (
-    <mesh ref={meshRef}>
-      <sphereGeometry ref={geometryRef} args={[1, 32, 32]} />
-      <meshStandardMaterial 
-        ref={materialRef}
-        color="#ffffff" 
-        metalness={0.01} 
-        roughness={2}
-        emissive="#00ff88"
-        emissiveIntensity={0.6}
-      />
+    <mesh ref={meshRef} material={getSharedMaterial('planet')}>
+      <sphereGeometry args={[1, 32, 32]} />
       
-      <Html distanceFactor={8} position={[0, 0, 0]}>
-        <div className="marker-content central-marker">
-          ORBITS<br />
-          <small>RMIT EXPO 2025</small>
+      <Html distanceFactor={8} position={[0, 0, 0]} center>
+        <div style={{
+          textAlign: 'center',
+          pointerEvents: 'none',
+          userSelect: 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '0px'
+        }}>
+          <img 
+            src="/MAGI_Banner.webp" 
+            alt="ORBITS MAGI EXPO 2025"
+            style={{
+              width: '350px',
+              height: 'auto',
+              filter: 'drop-shadow(0 0 20px rgba(255, 255, 255, 0.5))',
+              marginBottom: '10px'
+            }}
+          />
+          <div style={{
+            fontSize: '14px',
+            fontFamily: 'monospace',
+            color: '#000000',
+           //textShadow: '0 0 4px #000000',
+            letterSpacing: '3px',
+            textTransform: 'uppercase',
+           // background: 'rgba(0, 0, 0, 0.9',
+            padding: '6px 16px',
+           // border: '1px solid rgba(255, 255, 255, 0.3)',
+            backdropFilter: 'blur(5px)'
+          }}>
+            RMIT EXPO 2025
+          </div>
         </div>
       </Html>
     </mesh>
   )
-}
+})
 
-// ASTEROID FIELD WITH REAL DATA
-function AsteroidField({ asteroidData = [], searchTerm = '' }) {
-  const asteroidRefs = useRef([])
-  const materialRefs = useRef([])
-  const [hoveredAsteroid, setHoveredAsteroid] = useState(null)
+CentralSphere.displayName = 'CentralSphere'
+
+// ASTEROID FIELD - MAXIMUM OPTIMIZATION
+const AsteroidField = memo(({ asteroidData = [], searchTerm = '' }) => {
+  const meshRef = useRef()
+  const [hoveredIndex, setHoveredIndex] = useState(null)
+  const hoveredAsteroid = hoveredIndex !== null ? asteroidData[hoveredIndex] : null
+  const invalidate = useThree((state) => state.invalidate)
   
-  // Shared geometry for all asteroids
+  // Shared geometry
   const sharedGeometry = useMemo(() => new THREE.SphereGeometry(1, 4, 3), [])
   
-  // Cleanup on unmount
+  // CRITICAL: Reuse objects outside the render loop to avoid GC pressure
+  const tempObject = useMemo(() => new THREE.Object3D(), [])
+  const tempColor = useMemo(() => new THREE.Color(), [])
+  
+  // Initialize instance matrices once
   useEffect(() => {
-    return () => {
-      materialRefs.current.forEach(material => {
-        if (material) material.dispose()
-      })
-      if (sharedGeometry) sharedGeometry.dispose()
-      materialRefs.current = []
-      asteroidRefs.current = []
-      document.body.style.cursor = 'default'
+    if (!meshRef.current || asteroidData.length === 0) return
+    
+    const color = new THREE.Color(0xffffff)
+    
+    asteroidData.forEach((asteroid, i) => {
+      const scale = 0.04 + (i % 8) * 0.002
+      tempObject.position.fromArray(asteroid.position)
+      tempObject.scale.set(scale, scale, scale)
+      tempObject.updateMatrix()
+      meshRef.current.setMatrixAt(i, tempObject.matrix)
+      
+      meshRef.current.setColorAt(i, color)
+    })
+    
+    meshRef.current.instanceMatrix.needsUpdate = true
+    meshRef.current.instanceColor.needsUpdate = true
+    
+    if (meshRef.current.geometry) {
+      meshRef.current.geometry.computeBoundingSphere()
+      meshRef.current.geometry.computeBoundingBox()
     }
-  }, [sharedGeometry])
+    
+    meshRef.current.computeBoundingSphere()
+    invalidate()
+    
+  }, [asteroidData, tempObject, invalidate])
 
-  // Search matching
+  // Search matches - memoized
   const searchMatches = useMemo(() => {
     if (!searchTerm.trim()) return new Set()
     const term = searchTerm.toLowerCase()
     const matches = new Set()
-    asteroidData.forEach(asteroid => {
+    asteroidData.forEach((asteroid, i) => {
       if (asteroid.name.toLowerCase().includes(term) || 
           asteroid.workType.toLowerCase().includes(term) ||
           asteroid.workTitle.toLowerCase().includes(term)) {
-        matches.add(asteroid.id)
+        matches.add(i)
       }
     })
     return matches
@@ -236,275 +334,300 @@ function AsteroidField({ asteroidData = [], searchTerm = '' }) {
 
   const hasActiveSearch = searchTerm.trim().length > 0
 
-  // Connection lines for hover
-  const connectionLines = useMemo(() => {
-    if (!hoveredAsteroid) return []
+  // Update colors only when hover or search changes
+  useEffect(() => {
+    if (!meshRef.current) return
     
-    const connections = []
-    const MAX_CONNECTIONS = 20
-    const hoveredPos = hoveredAsteroid.position
-    
-    for (let i = 0; i < asteroidData.length && connections.length < MAX_CONNECTIONS; i++) {
+    for (let i = 0; i < asteroidData.length; i++) {
       const asteroid = asteroidData[i]
-      if (asteroid.id !== hoveredAsteroid.id && asteroid.workType === hoveredAsteroid.workType) {
-        connections.push({
-          start: hoveredPos,
-          end: asteroid.position,
-          id: `connection-${hoveredAsteroid.id}-${asteroid.id}`
-        })
+      const isHovered = hoveredIndex === i
+      const isConnected = hoveredAsteroid && hoveredAsteroid.workType === asteroid.workType && hoveredIndex !== i
+      const isMatch = searchMatches.has(i)
+      
+      let intensity
+      if (isHovered) {
+        intensity = 2.0
+      } else if (isConnected) {
+        intensity = 1.5
+      } else if (isMatch) {
+        intensity = 1.8
+      } else {
+        intensity = hasActiveSearch ? 0.4 : 1.0
       }
+      
+      tempColor.setHex(0xffffff).multiplyScalar(intensity)
+      meshRef.current.setColorAt(i, tempColor)
     }
     
-    return connections
-  }, [hoveredAsteroid, asteroidData])
+    meshRef.current.instanceColor.needsUpdate = true
+    invalidate()
+  }, [hoveredIndex, hoveredAsteroid, searchMatches, hasActiveSearch, asteroidData, tempColor, invalidate])
 
-  // Animation
-  useFrame((state, delta) => {
+  // ✅ HIGH PRIORITY FIX #3: Throttle to every 3rd frame
+  useFrame((state) => {
+    if (!meshRef.current) return
+    
+    // Only update every 3rd frame for better performance
+    if (state.frame % 3 !== 0) return
+    
     const time = state.clock.elapsedTime
     
-    asteroidRefs.current.forEach((ref, i) => {
-      if (ref && asteroidData[i]) {
-        const asteroid = asteroidData[i]
-        const floatSpeed = 0.1 + (i % 10) * 0.03
-        const floatAmplitude = 0.05 + (i % 5) * 0.01
-        
-        // Set position explicitly, not modifying the original position
-        ref.position.set(
-          asteroid.position[0],
-          asteroid.position[1] + Math.sin(time * floatSpeed) * floatAmplitude,
-          asteroid.position[2]
-        )
-        
-        // Reduce rotation frequency
-        const rotationSpeed = (0.01 + (i % 10) * 0.002) * delta * 30
-        ref.rotation.x += rotationSpeed
-        ref.rotation.y += rotationSpeed * 0.7
-      }
-    })
+    for (let i = 0; i < asteroidData.length; i++) {
+      const asteroid = asteroidData[i]
+      const floatSpeed = 0.1 + (i % 10) * 0.03
+      const floatAmplitude = 0.05 + (i % 5) * 0.01
+      const scale = 0.04 + (i % 8) * 0.002
+      
+      tempObject.position.set(
+        asteroid.position[0],
+        asteroid.position[1] + Math.sin(time * floatSpeed) * floatAmplitude,
+        asteroid.position[2]
+      )
+      tempObject.scale.set(scale, scale, scale)
+      tempObject.rotation.x = time * 0.05 * (1 + i % 10 * 0.05)
+      tempObject.rotation.y = time * 0.03 * (1 + i % 10 * 0.05)
+      tempObject.updateMatrix()
+      
+      meshRef.current.setMatrixAt(i, tempObject.matrix)
+    }
+    
+    meshRef.current.instanceMatrix.needsUpdate = true
+    invalidate()
   })
 
-  if (asteroidData.length === 0) {
-    return null
-  }
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      if (sharedGeometry) sharedGeometry.dispose()
+      document.body.style.cursor = 'default'
+    }
+  }, [sharedGeometry])
+
+  if (asteroidData.length === 0) return null
 
   return (
-    <group>
-      {/* Connection lines */}
-      {connectionLines.map(connection => (
-        <Line
-          key={connection.id}
-          points={[connection.start, connection.end]}
-          color="rgb(233, 53, 158)"
-          lineWidth={2}
-          transparent
-          opacity={0.6}
-          dashed={true}
-          dashScale={2}
-          dashSize={0.05}
-          gapSize={0.02}
-        />
-      ))}
+    <group key={`asteroid-field-${asteroidData.length}`}>
+      <instancedMesh
+        ref={meshRef}
+        args={[sharedGeometry, getSharedMaterial('asteroid'), asteroidData.length]}
+        frustumCulled={false}
+        onPointerMove={(e) => {
+          e.stopPropagation()
+          const id = e.instanceId
+          if (id !== undefined && id >= 0 && id < asteroidData.length) {
+            setHoveredIndex(id)
+            document.body.style.cursor = 'pointer'
+            invalidate()
+          }
+        }}
+        onPointerOut={(e) => {
+          e.stopPropagation()
+          setHoveredIndex(null)
+          document.body.style.cursor = 'default'
+          invalidate()
+        }}
+        onClick={(e) => {
+          e.stopPropagation()
+          const id = e.instanceId
+          if (id !== undefined && id >= 0 && id < asteroidData.length) {
+            console.log('Clicked asteroid:', asteroidData[id])
+            invalidate()
+          }
+        }}
+      />
 
-      {asteroidData.map((asteroid, index) => {
-        const size = 0.1 + (index % 8) * 0.005
+      {hoveredAsteroid && (
+        <Html
+          position={[
+            hoveredAsteroid.position[0] + 0.5,
+            hoveredAsteroid.position[1],
+            hoveredAsteroid.position[2]
+          ]}
+          style={{ pointerEvents: 'none', userSelect: 'none' }}
+        >
+          <div style={{
+            background: 'rgba(0, 0, 0, 0.95)',
+            border: '1px solid rgba(255, 255, 255, 1)',
+            padding: '12px',
+            color: 'white',
+            fontSize: '11px',
+            fontFamily: 'monospace',
+            width: '240px',
+            backdropFilter: 'blur(15px)',
+            boxShadow: '0 8px 32px rgba(233, 53, 158, .1)',
+            display: 'flex',
+            gap: '12px',
+            alignItems: 'flex-start'
+          }}>
+            {/* Profile Picture - fixed size, only loads on hover */}
+            <div style={{
+              width: '60px',
+              height: '60px',
+              flexShrink: 0,
+              position: 'relative'
+            }}>
+              <img 
+                src={hoveredAsteroid.studentNumber 
+                  ? `/profiles/${hoveredAsteroid.studentNumber}.webp`
+                  : '/profiles/placeholder.webp'
+                }
+                alt={hoveredAsteroid.name}
+                loading="lazy"
+                onError={(e) => {
+                  // Fallback to placeholder if image doesn't exist
+                  e.target.src = '/profiles/placeholder.webp'
+                }}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  borderRadius: '4px',
+                  objectFit: 'cover',
+                  border: '1px solid rgba(233, 53, 158, 0.5)',
+                  display: 'block'
+                }}
+              />
+            </div>
+            
+            <div style={{ 
+              flex: 1,
+              minWidth: 0,
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                fontSize: '13px',
+                fontWeight: 'bold',
+                color: '#ffffff',
+                marginBottom: '4px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}>
+                {hoveredAsteroid.name}
+              </div>
+              
+              <div style={{
+                fontSize: '9px',
+                color: 'rgba(233, 53, 158, 1)',
+                marginBottom: '8px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px'
+              }}>
+                {hoveredAsteroid.workType}
+              </div>
+
+              <div style={{
+                fontSize: '10px',
+                color: '#cccccc',
+                lineHeight: '1.4',
+                display: '-webkit-box',
+                WebkitLineClamp: 6,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}>
+                {hoveredAsteroid.bio || 'No bio available'}
+              </div>
+            </div>
+          </div>
+        </Html>
+      )}
+      
+      {hasActiveSearch && asteroidData.map((asteroid, i) => {
+        if (!searchMatches.has(i)) return null
         
         return (
-          <group key={asteroid.id}>
-            <mesh
-              ref={(el) => (asteroidRefs.current[index] = el)}
-              position={asteroid.position}
-              scale={[size * 0.4, size * 0.4, size * 0.4]}
-              onPointerOver={(e) => {
-                e.stopPropagation()
-                setHoveredAsteroid(asteroid)
-                document.body.style.cursor = 'pointer'
-              }}
-              onPointerOut={(e) => {
-                e.stopPropagation()
-                setHoveredAsteroid(null)
-                document.body.style.cursor = 'default'
-              }}
-              onClick={(e) => {
-                e.stopPropagation()
-                // Click disabled - hover only
-              }}
-              geometry={sharedGeometry}
-            >
-              <meshStandardMaterial 
-                ref={(el) => (materialRefs.current[index] = el)}
-                color="#999999"
-                metalness={0.0}
-                roughness={1.0}
-                emissive={
-                  hoveredAsteroid?.id === asteroid.id ? "#4a9eff" : 
-                  hoveredAsteroid?.workType === asteroid.workType && hoveredAsteroid?.id !== asteroid.id ? "#4a9eff" :
-                  searchMatches.has(asteroid.id) ? "#4a9eff" : 
-                  "#000000"
-                }
-                emissiveIntensity={
-                  hoveredAsteroid?.id === asteroid.id ? 0.2 : 
-                  hoveredAsteroid?.workType === asteroid.workType && hoveredAsteroid?.id !== asteroid.id ? 0.15 :
-                  searchMatches.has(asteroid.id) ? 0.3 : 
-                  0.0
-                }
-                opacity={
-                  hasActiveSearch ? (searchMatches.has(asteroid.id) ? 0.8 : 0.2) : 0.6
-                }
-                transparent={true}
-              />
-            </mesh>
-            
-            {/* Search result highlight */}
-            {searchMatches.has(asteroid.id) && (
-              <Html
-                position={asteroid.position}
-                style={{
-                  pointerEvents: 'none',
-                  userSelect: 'none'
-                }}
-              >
-                <div style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  width: '60px',
-                  height: '60px',
-                  border: '1px solid #4a9eff',
-                  borderRadius: '4px',
-                  background: 'rgba(74, 158, 255, 0.05)',
-                  boxShadow: '0 0 15px rgba(74, 158, 255, 0.3)',
-                  animation: 'searchPulse 2s infinite ease-in-out',
-                  zIndex: 0
-                }}>
-                  <div style={{
-                    position: 'absolute',
-                    top: '-2px',
-                    left: '-2px',
-                    width: '8px',
-                    height: '8px',
-                    border: '2px solid #4a9eff',
-                    borderRight: 'none',
-                    borderBottom: 'none'
-                  }}></div>
-                  <div style={{
-                    position: 'absolute',
-                    top: '-2px',
-                    right: '-2px',
-                    width: '8px',
-                    height: '8px',
-                    border: '2px solid #4a9eff',
-                    borderLeft: 'none',
-                    borderBottom: 'none'
-                  }}></div>
-                  <div style={{
-                    position: 'absolute',
-                    bottom: '-2px',
-                    left: '-2px',
-                    width: '8px',
-                    height: '8px',
-                    border: '2px solid #4a9eff',
-                    borderRight: 'none',
-                    borderTop: 'none'
-                  }}></div>
-                  <div style={{
-                    position: 'absolute',
-                    bottom: '-2px',
-                    right: '-2px',
-                    width: '8px',
-                    height: '8px',
-                    border: '2px solid #4a9eff',
-                    borderLeft: 'none',
-                    borderTop: 'none'
-                  }}></div>
-                </div>
+          <Html
+            key={`search-${asteroid.id}`}
+            position={asteroid.position}
+            style={{
+              pointerEvents: 'none',
+              userSelect: 'none'
+            }}
+            center
+            distanceFactor={10}
+          >
+            <div style={{
+              width: '60px',
+              height: '60px',
+              border: '1px solid #e9359e',
+              borderRadius: '4px',
+              background: 'rgba(233, 53, 158, 0.05)',
+              boxShadow: '0 0 15px rgba(233, 53, 158, 0.3)',
+              animation: 'searchPulse 2s infinite ease-in-out',
+              position: 'relative',
+              pointerEvents: 'none'
+            }}>
+              <div style={{
+                position: 'absolute',
+                top: '-2px',
+                left: '-2px',
+                width: '8px',
+                height: '8px',
+                border: '2px solid #e9359e',
+                borderRight: 'none',
+                borderBottom: 'none',
+                pointerEvents: 'none'
+              }}></div>
+              <div style={{
+                position: 'absolute',
+                top: '-2px',
+                right: '-2px',
+                width: '8px',
+                height: '8px',
+                border: '2px solid #e9359e',
+                borderLeft: 'none',
+                borderBottom: 'none',
+                pointerEvents: 'none'
+              }}></div>
+              <div style={{
+                position: 'absolute',
+                bottom: '-2px',
+                left: '-2px',
+                width: '8px',
+                height: '8px',
+                border: '2px solid #e9359e',
+                borderRight: 'none',
+                borderTop: 'none',
+                pointerEvents: 'none'
+              }}></div>
+              <div style={{
+                position: 'absolute',
+                bottom: '-2px',
+                right: '-2px',
+                width: '8px',
+                height: '8px',
+                border: '2px solid #e9359e',
+                borderLeft: 'none',
+                borderTop: 'none',
+                pointerEvents: 'none'
+              }}></div>
+            </div>
 
-                <style>{`
-                  @keyframes searchPulse {
-                    0%, 100% { 
-                      transform: translate(-50%, -50%) scale(1);
-                      opacity: 0.8;
-                    }
-                    50% { 
-                      transform: translate(-50%, -50%) scale(1.1);
-                      opacity: 1;
-                    }
-                  }
-                `}</style>
-              </Html>
-            )}
-            
-            {/* Hover tooltip */}
-            {hoveredAsteroid?.id === asteroid.id && (
-              <Html
-                position={[asteroid.position[0] + size + 0.8, asteroid.position[1] + 0.2, asteroid.position[2]]}
-                style={{
-                  pointerEvents: 'none',
-                  userSelect: 'none'
-                }}
-              >
-                <div style={{
-                  background: 'rgba(0, 0, 0, 0.95)',
-                  border: '1px solid rgba(74, 158, 255, 0.5)',
-                  borderRadius: '8px',
-                  padding: '12px',
-                  color: 'white',
-                  fontSize: '11px',
-                  fontFamily: 'monospace',
-                  minWidth: '180px',
-                  backdropFilter: 'blur(15px)',
-                  boxShadow: '0 8px 32px rgba(74, 158, 255, 0.3)',
-                  animation: 'fadeIn 0.3s ease-out'
-                }}>
-                  <div style={{
-                    fontSize: '13px',
-                    fontWeight: 'bold',
-                    color: '#ffffff',
-                    marginBottom: '4px'
-                  }}>
-                    {asteroid.name}
-                  </div>
-                  
-                  <div style={{
-                    fontSize: '9px',
-                    color: '#4a9eff',
-                    marginBottom: '8px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
-                  }}>
-                    {asteroid.workType}
-                  </div>
-
-                  <div style={{
-                    fontSize: '10px',
-                    color: '#cccccc',
-                    lineHeight: '1.3'
-                  }}>
-                    {asteroid.workTitle}
-                  </div>
-                </div>
-
-                <style>{`
-                  @keyframes fadeIn {
-                    from { opacity: 0; transform: translateX(10px); }
-                    to { opacity: 1; transform: translateX(0); }
-                  }
-                `}</style>
-              </Html>
-            )}
-          </group>
+            <style>{`
+              @keyframes searchPulse {
+                0%, 100% { 
+                  transform: scale(1);
+                  opacity: 0.8;
+                }
+                50% { 
+                  transform: scale(1.1);
+                  opacity: 1;
+                }
+              }
+            `}</style>
+          </Html>
         )
       })}
     </group>
   )
-}
+})
 
-// Main Orbital System Component
+AsteroidField.displayName = 'AsteroidField'
+
+// Main Orbital System
 export function OrbitalSystem({ searchTerm = '' }) {
-  // Load CSV data
   const { asteroidData, isLoading, error } = useAsteroidData()
 
-  // Show loading state
   if (isLoading) {
     return (
       <Html fullscreen>
@@ -539,7 +662,6 @@ export function OrbitalSystem({ searchTerm = '' }) {
     )
   }
 
-  // Show error state
   if (error) {
     return (
       <Html fullscreen>
@@ -562,6 +684,9 @@ export function OrbitalSystem({ searchTerm = '' }) {
 
   return (
     <>
+      {/* ✅ HIGH PRIORITY FIX #2: Add Performance Regressor */}
+      <PerformanceRegressor />
+      
       <CentralSphere />
       
       <AsteroidField 
@@ -569,87 +694,70 @@ export function OrbitalSystem({ searchTerm = '' }) {
         searchTerm={searchTerm}
       />
       
-      {/* Research orbit with GLB model */}
       <OrbitRing radius={2} orbitColor="#ffffff" opacity={1.0} />
       <GLBOrbitingSphere
         modelPath="/ResearchModel.glb"
         radius={2}
-        speed={0.08}
+        speed={0.04}
         initialAngle={0}
         label="Research"
-        description="High frequency orbit"
         scale={0.3}
       />
       
-      {/* Animation orbit with GLB model */}
       <OrbitRing radius={3.05} orbitColor="#ffffff" opacity={0.75} />
       <GLBOrbitingSphere
         modelPath="/AnimationsModel.glb"
         radius={3.05}
-        speed={0.055}
+        speed={0.03}
         initialAngle={Math.PI * 0.7}
         label="Animation"
-        description="Medium orbit zone"
         scale={0.3}
       />
       
-      {/* Games orbit with GLB model */}
       <OrbitRing radius={4.1} orbitColor="#ffffff" opacity={0.5} />
       <GLBOrbitingSphere
         modelPath="/GamesModel.glb"
         radius={4.1}
-        speed={0.037}
+        speed={0.02}
         initialAngle={Math.PI * 1.3}
         label="Games"
-        description="Extended range orbit"
         scale={0.3}
-        hasMoon={true}
       />
       
-      {/* Interaction orbit with GLB model */}
       <OrbitRing radius={5.15} orbitColor="#ffffff" opacity={0.25} />
       <GLBOrbitingSphere
         modelPath="/InteractiveModel.glb"
         radius={5.15}
-        speed={0.023}
+        speed={0.015}
         initialAngle={Math.PI * 1.8}
         label="Interaction"
-        description="Outer orbit zone"
         scale={0.3}
       />
     </>
   )
 }
 
-// Orbit Ring Component (separated for reuse)
-function OrbitRing({ radius, orbitColor, opacity = 1.0 }) {
-  const createDashedCircle = (radius, segments = 150) => {
-    const points = []
+// Orbit Ring - MEMOIZED
+const OrbitRing = memo(({ radius, orbitColor, opacity = 1.0 }) => {
+  const points = useMemo(() => {
+    const pts = []
+    const segments = 150
     for (let i = 0; i <= segments; i++) {
       const angle = (i / segments) * Math.PI * 2
       if (Math.floor(i / 3.1) % 2 === 0) {
-        points.push(new THREE.Vector3(
+        pts.push(new THREE.Vector3(
           Math.cos(angle) * radius,
           0,
           Math.sin(angle) * radius
         ))
-      } else if (i > 0 && Math.floor((i-1) / 3) % 2 === 0) {
-        points.push(new THREE.Vector3(
-          Math.cos(angle) * radius,
-          0,
-          Math.sin(angle) * radius
-        ))
-        points.push(null)
       }
     }
-    return points.filter(p => p !== null)
-  }
-
-  const orbitPoints = useMemo(() => createDashedCircle(radius), [radius])
+    return pts
+  }, [radius])
 
   return (
     <Line
-      points={orbitPoints}
+      points={points}
       color={orbitColor}
       lineWidth={1}
       dashed={true}
@@ -660,192 +768,12 @@ function OrbitRing({ radius, orbitColor, opacity = 1.0 }) {
       opacity={opacity}
     />
   )
-}
+})
 
-// Moon System Component
-function MoonSystem({ parentPosition, moonRadius = 0.6, moonSpeed = 0.2, moonColor = "#ffffff" }) {
-  const moonRef = useRef()
-  const orbitLineRef = useRef()
-  const materialRef = useRef()
-  const geometryRef = useRef()
-  
-  const moonOrbitPoints = useMemo(() => {
-    const createSmallDashedCircle = (radius, segments = 32) => {
-      const points = []
-      for (let i = 0; i <= segments; i++) {
-        const angle = (i / segments) * Math.PI * 2
-        if (Math.floor(i / 2) % 2 === 0) {
-          points.push(new THREE.Vector3(
-            Math.cos(angle) * radius,
-            0,
-            Math.sin(angle) * radius
-          ))
-        } else if (i > 0 && Math.floor((i-1) / 2) % 2 === 0) {
-          points.push(new THREE.Vector3(
-            Math.cos(angle) * radius,
-            0,
-            Math.sin(angle) * radius
-          ))
-          points.push(null)
-        }
-      }
-      return points.filter(p => p !== null)
-    }
-    return createSmallDashedCircle(moonRadius)
-  }, [moonRadius])
-  
-  useEffect(() => {
-    const material = materialRef.current
-    const geometry = geometryRef.current
-    return () => {
-      if (material) material.dispose()
-      if (geometry) geometry.dispose()
-    }
-  }, [])
-  
-  useFrame((state) => {
-    if (moonRef.current && parentPosition) {
-      const time = state.clock.elapsedTime
-      const moonAngle = time * moonSpeed
-      
-      moonRef.current.position.x = parentPosition.x + Math.cos(moonAngle) * moonRadius
-      moonRef.current.position.z = parentPosition.z + Math.sin(moonAngle) * moonRadius
-      moonRef.current.position.y = parentPosition.y
-      
-      if (orbitLineRef.current) {
-        orbitLineRef.current.position.set(parentPosition.x, parentPosition.y, parentPosition.z)
-      }
-    }
-  })
+OrbitRing.displayName = 'OrbitRing'
 
-  if (!parentPosition) return null
-
-  return (
-    <group>
-      <group ref={orbitLineRef}>
-        <Line
-          points={moonOrbitPoints}
-          color="#ffffff"
-          lineWidth={1}
-          dashed={true}
-          dashScale={0.9}
-          dashSize={0.1}
-          gapSize={0.05}
-        />
-      </group>
-      
-      <mesh ref={moonRef}>
-        <sphereGeometry ref={geometryRef} args={[0.10, 10, 10]} />
-        <meshStandardMaterial 
-          ref={materialRef}
-          color={moonColor} 
-          metalness={0.3} 
-          roughness={0.3}
-          emissive={moonColor}
-          emissiveIntensity={0.15}
-        />
-      </mesh>
-    </group>
-  )
-}
-
-// Orbiting System Component
-function OrbitingSystem({ radius, speed, sphereColor, orbitColor, initialAngle, label, description, hasMoon = false }) {
-  const sphereRef = useRef()
-  const materialRef = useRef()
-  const [planetPosition, setPlanetPosition] = useState({ x: 0, y: 0, z: 0 })
-  
-  const createDashedCircle = (radius, segments = 150) => {
-    const points = []
-    for (let i = 0; i <= segments; i++) {
-      const angle = (i / segments) * Math.PI * 2
-      if (Math.floor(i / 3.1) % 2 === 0) {
-        points.push(new THREE.Vector3(
-          Math.cos(angle) * radius,
-          0,
-          Math.sin(angle) * radius
-        ))
-      } else if (i > 0 && Math.floor((i-1) / 3) % 2 === 0) {
-        points.push(new THREE.Vector3(
-          Math.cos(angle) * radius,
-          0,
-          Math.sin(angle) * radius
-        ))
-        points.push(null)
-      }
-    }
-    return points.filter(p => p !== null)
-  }
-
-  const orbitPoints = useMemo(() => createDashedCircle(radius), [radius])
-  
-  useEffect(() => {
-    return () => {
-      if (materialRef.current) {
-        materialRef.current.dispose()
-      }
-      document.body.style.cursor = 'default'
-    }
-  }, [])
-  
-  useFrame((state, delta) => {
-    if (sphereRef.current) {
-      const time = state.clock.elapsedTime
-      const angle = time * speed + initialAngle
-      
-      const newX = Math.cos(angle) * radius
-      const newZ = Math.sin(angle) * radius
-      const newY = 0
-      
-      sphereRef.current.position.x = newX
-      sphereRef.current.position.z = newZ
-      sphereRef.current.position.y = newY
-      
-      const newPosition = { x: newX, y: newY, z: newZ }
-      setPlanetPosition(newPosition)
-      
-      sphereRef.current.rotation.x += delta * 0.5
-      sphereRef.current.rotation.y += delta * 0.5
-    }
-  })
-
-  return (
-    <group>
-      <Line
-        points={orbitPoints}
-        color={orbitColor}
-        lineWidth={1}
-        dashed={true}
-        dashScale={1}
-        dashSize={0.15}
-        gapSize={0.1}
-      />
-      
-      <mesh ref={sphereRef}>
-        <sphereGeometry args={[0.3, 16, 16]} />
-        <meshStandardMaterial 
-          ref={materialRef}
-          color={sphereColor} 
-          metalness={0.2} 
-          roughness={0.3}
-          emissive={sphereColor}
-          emissiveIntensity={0.1}
-        />
-        <Html distanceFactor={8} position={[0, 0, 0]}>
-          <div className="marker-content">
-            {label}<br />
-            <small>{description}</small>
-          </div>
-        </Html>
-      </mesh>
-      
-      {hasMoon && <MoonSystem parentPosition={planetPosition} />}
-    </group>
-  )
-}
-
-// Search Bar Component
-export function SearchBar({ searchTerm, onSearchChange }) {
+// Search Bar - MEMOIZED
+export const SearchBar = memo(({ searchTerm, onSearchChange }) => {
   return (
     <div style={{
       position: 'fixed',
@@ -901,4 +829,6 @@ export function SearchBar({ searchTerm, onSearchChange }) {
       </div>
     </div>
   )
-}
+})
+
+SearchBar.displayName = 'SearchBar'
