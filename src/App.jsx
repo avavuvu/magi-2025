@@ -109,6 +109,9 @@ export default function App() {
   const [isMobile, setIsMobile] = useState(false)
   const [currentProfileIndex, setCurrentProfileIndex] = useState(-1)
   const [touchStartX, setTouchStartX] = useState(0)
+  const [touchStartTime, setTouchStartTime] = useState(0)
+  const [lastTouchX, setLastTouchX] = useState(0)
+  const [velocity, setVelocity] = useState(0)
   const [hasSwipedOnce, setHasSwipedOnce] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [orbitalRotation, setOrbitalRotation] = useState(0)
@@ -146,6 +149,9 @@ export default function App() {
   const handleTouchStart = useCallback((e) => {
     if (!isMobile) return
     setTouchStartX(e.touches[0].clientX)
+    setLastTouchX(e.touches[0].clientX)
+    setTouchStartTime(Date.now())
+    setVelocity(0)
     setIsDragging(true)
     
     if (!hasSwipedOnce) {
@@ -158,74 +164,125 @@ export default function App() {
     if (!isMobile || !isDragging) return
     
     const currentX = e.touches[0].clientX
+    const currentTime = Date.now()
     
-    // Calculate rotation based on drag distance (REDUCED sensitivity to 33% of original)
+    // Calculate rotation based on drag distance - FREE FLOWING
     const dragDelta = currentX - touchStartX
-    const rotationDelta = (dragDelta / window.innerWidth) * Math.PI * 0.66 // Changed from 1 to 0.66
+    const rotationDelta = (dragDelta / window.innerWidth) * Math.PI * 1.5
     const newRotation = lastRotationRef.current + rotationDelta
+    
+    // Calculate velocity for momentum
+    const timeDelta = currentTime - touchStartTime
+    const moveDelta = currentX - lastTouchX
+    if (timeDelta > 0) {
+      setVelocity((moveDelta / timeDelta) * 16) // Scale for smoother momentum
+    }
+    
+    setLastTouchX(currentX)
     
     // Apply rotation to the orbital system
     if (window.__orbitalGroupRef) {
       window.__orbitalGroupRef.rotation.y = newRotation
       setOrbitalRotation(newRotation)
     }
-  }, [isMobile, isDragging, touchStartX])
+    
+    // LIVE UPDATE: Calculate which profile is currently closest
+    if (asteroidData.length > 0) {
+      const segmentSize = (Math.PI * 2) / asteroidData.length
+      const normalizedRotation = ((newRotation % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)
+      const liveProfileIndex = Math.round(normalizedRotation / segmentSize) % asteroidData.length
+      setCurrentProfileIndex(liveProfileIndex)
+    }
+  }, [isMobile, isDragging, touchStartX, touchStartTime, lastTouchX, asteroidData.length])
 
   const handleTouchEnd = useCallback(() => {
     if (!isMobile || !isDragging || asteroidData.length === 0) return
     
     setIsDragging(false)
     
-    // Calculate which profile to show based on rotation
-    const normalizedRotation = ((orbitalRotation % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)
-    const segmentSize = (Math.PI * 2) / asteroidData.length
-    const rawIndex = normalizedRotation / segmentSize
+    // ROULETTE-STYLE MOMENTUM SPIN
+    const friction = 0.95 // How quickly the spin slows down
+    const minVelocity = 0.001 // Minimum velocity before stopping
+    let currentVelocity = velocity * 0.01 // Convert to rotation velocity
+    let currentRotation = orbitalRotation
     
-    // Add threshold to prevent accidental profile changes (must rotate at least 30% of a segment)
-    const indexDiff = Math.abs(rawIndex - currentProfileIndex)
-    let profileIndex
-    
-    if (indexDiff < 0.3) {
-      // Too small movement, snap back to current profile
-      profileIndex = currentProfileIndex
-    } else {
-      // Significant movement, snap to nearest
-      profileIndex = Math.round(rawIndex) % asteroidData.length
-    }
-    
-    // Snap to the profile with smooth animation
-    const snappedRotation = profileIndex * segmentSize
-    
-    // Animate to snapped position
-    if (window.__orbitalGroupRef) {
-      const startRotation = orbitalRotation
-      const targetRotation = snappedRotation
-      const duration = 400 // Increased from 300ms to 400ms for smoother feel
-      const startTime = Date.now()
+    const momentumSpin = () => {
+      currentVelocity *= friction
+      currentRotation += currentVelocity
       
-      const animate = () => {
-        const elapsed = Date.now() - startTime
-        const progress = Math.min(elapsed / duration, 1)
-        
-        // Easing function for smooth snap (cubic ease-out)
-        const easeProgress = 1 - Math.pow(1 - progress, 3)
-        
-        const currentRotation = startRotation + (targetRotation - startRotation) * easeProgress
+      if (window.__orbitalGroupRef) {
         window.__orbitalGroupRef.rotation.y = currentRotation
         setOrbitalRotation(currentRotation)
-        
-        if (progress < 1) {
-          requestAnimationFrame(animate)
-        } else {
-          lastRotationRef.current = targetRotation
-        }
       }
       
-      animate()
+      // LIVE UPDATE during momentum: Update profile index continuously
+      if (asteroidData.length > 0) {
+        const segmentSize = (Math.PI * 2) / asteroidData.length
+        const normalizedRotation = ((currentRotation % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)
+        const liveProfileIndex = Math.round(normalizedRotation / segmentSize) % asteroidData.length
+        setCurrentProfileIndex(liveProfileIndex)
+      }
+      
+      // Continue spinning if velocity is significant
+      if (Math.abs(currentVelocity) > minVelocity) {
+        requestAnimationFrame(momentumSpin)
+      } else {
+        // SNAP TO NEAREST PROFILE when momentum stops
+        const segmentSize = (Math.PI * 2) / asteroidData.length
+        const normalizedRotation = ((currentRotation % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)
+        const profileIndex = Math.round(normalizedRotation / segmentSize) % asteroidData.length
+        
+        // Find the shortest path to snap (don't reset, just snap to nearest)
+        // Calculate target rotation that's closest to current rotation
+        const rawTargetRotation = profileIndex * segmentSize
+        
+        // Find all possible rotations for this profile (current rotation could be multiple spins around)
+        const rotationOffset = Math.floor(currentRotation / (Math.PI * 2)) * (Math.PI * 2)
+        const possibleTargets = [
+          rotationOffset + rawTargetRotation,
+          rotationOffset + rawTargetRotation - (Math.PI * 2),
+          rotationOffset + rawTargetRotation + (Math.PI * 2)
+        ]
+        
+        // Choose the target rotation closest to current rotation
+        const snappedRotation = possibleTargets.reduce((closest, target) => {
+          return Math.abs(target - currentRotation) < Math.abs(closest - currentRotation) 
+            ? target 
+            : closest
+        })
+        
+        // Smooth snap animation
+        const startRotation = currentRotation
+        const targetRotation = snappedRotation
+        const duration = 500
+        const startTime = Date.now()
+        
+        const snapAnimate = () => {
+          const elapsed = Date.now() - startTime
+          const progress = Math.min(elapsed / duration, 1)
+          const easeProgress = 1 - Math.pow(1 - progress, 3)
+          
+          const snapRotation = startRotation + (targetRotation - startRotation) * easeProgress
+          
+          if (window.__orbitalGroupRef) {
+            window.__orbitalGroupRef.rotation.y = snapRotation
+            setOrbitalRotation(snapRotation)
+          }
+          
+          if (progress < 1) {
+            requestAnimationFrame(snapAnimate)
+          } else {
+            lastRotationRef.current = targetRotation
+            setCurrentProfileIndex(profileIndex)
+          }
+        }
+        
+        snapAnimate()
+      }
     }
     
-    setCurrentProfileIndex(profileIndex)
-  }, [isMobile, isDragging, asteroidData.length, orbitalRotation, currentProfileIndex])
+    momentumSpin()
+  }, [isMobile, isDragging, asteroidData.length, orbitalRotation, velocity])
 
   // Memoize camera settings - adjusted for mobile
   const cameraSettings = useMemo(() => ({
@@ -467,23 +524,67 @@ export default function App() {
                   zIndexRange={[16777271, 16777272]}
                   occlude={false}
                   style={{
-                    pointerEvents: 'none',
+                    pointerEvents: 'auto',
                     userSelect: 'none'
                   }}
                 >
                   <div style={{
                     animation: 'fadeIn 0.3s ease-out',
-                    width: '65vw',
+                    width: '60vw',
                     maxWidth: '320px',
-                    transform: 'translate(0, 0)'
+                    transform: 'translate(0, 0)',
+                    pointerEvents: 'auto'
                   }}>
                     <div style={{
                       background: 'rgba(0, 0, 0, 0.95)',
                       border: '2px solid rgba(233, 53, 158, 1)',
                       borderRadius: '0px',
                       padding: '16px',
-                      backdropFilter: 'blur(20px)'
+                      backdropFilter: 'blur(20px)',
+                      pointerEvents: 'auto',
+                      position: 'relative'
                     }}>
+                      {/* Close Button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setHasSwipedOnce(false)
+                          setCurrentProfileIndex(-1)
+                          setOrbitalRotation(0)
+                          lastRotationRef.current = 0
+                          if (window.__orbitalGroupRef) {
+                            window.__orbitalGroupRef.rotation.y = 0
+                          }
+                        }}
+                        onTouchStart={(e) => e.stopPropagation()}
+                        onTouchEnd={(e) => e.stopPropagation()}
+                        style={{
+                          position: 'absolute',
+                          top: '8px',
+                          right: '8px',
+                          background: 'none',
+                          border: 'none',
+                          color: '#e9359e',
+                          fontSize: '20px',
+                          cursor: 'pointer',
+                          padding: '0',
+                          width: '24px',
+                          height: '24px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          opacity: 0.6,
+                          transition: 'opacity 0.2s',
+                          outline: 'none',
+                          lineHeight: 1,
+                          fontFamily: 'monospace'
+                        }}
+                        onMouseEnter={(e) => e.target.style.opacity = '1'}
+                        onMouseLeave={(e) => e.target.style.opacity = '0.6'}
+                      >
+                        ×
+                      </button>
+
                       {/* Profile Picture */}
                       <div style={{
                         width: '80px',
@@ -515,7 +616,7 @@ export default function App() {
                       {/* Name - FIXED HEIGHT FOR 2 LINES */}
                       <h2 style={{
                         color: '#ffffff',
-                        fontSize: '15px',
+                        fontSize: '13.5px',
                         fontFamily: 'monospace',
                         fontWeight: 'bold',
                         textAlign: 'center',
@@ -541,7 +642,7 @@ export default function App() {
                           border: '1px solid rgba(233, 53, 158, 1)',
                           color: '#e9359e',
                           padding: '4px 12px',
-                          fontSize: '9px',
+                          fontSize: '8px',
                           fontFamily: 'monospace',
                           textTransform: 'uppercase',
                           letterSpacing: '1px',
@@ -555,7 +656,7 @@ export default function App() {
                       {currentProfile.workTitle ? (
                         <div style={{
                           color: '#cccccc',
-                          fontSize: '11`px',
+                          fontSize: '11px',
                           fontFamily: 'monospace',
                           textAlign: 'center',
                           marginBottom: '10px',
@@ -583,8 +684,15 @@ export default function App() {
                         padding: '0 6px',
                         display: 'flex',
                         alignItems: 'flex-start',
-                        justifyContent: 'center'
-                      }}>
+                        justifyContent: 'center',
+                        WebkitOverflowScrolling: 'touch',
+                        scrollbarWidth: 'thin',
+                        scrollbarColor: 'rgba(233, 53, 158, 0.5) transparent'
+                      }}
+                      onTouchStart={(e) => e.stopPropagation()}
+                      onTouchMove={(e) => e.stopPropagation()}
+                      onTouchEnd={(e) => e.stopPropagation()}
+                      >
                         <div style={{ width: '100%' }}>
                           {currentProfile.bio || '\u00A0'}
                         </div>
@@ -595,17 +703,130 @@ export default function App() {
                     <div style={{
                       display: 'flex',
                       justifyContent: 'space-between',
-                      marginTop: '9px',
+                      marginTop: '10px',
                       padding: '0 16px',
                       color: '#e9359e',
                       fontSize: '20px',
-                      opacity: 0.6
+                      opacity: 0.6,
+                      pointerEvents: 'auto'
                     }}>
-                      <span>‹</span>
-                      <span style={{ fontSize: '10px', alignSelf: 'center', fontFamily: 'monospace' }}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          const prevIndex = (currentProfileIndex - 1 + asteroidData.length) % asteroidData.length
+                          const targetRotation = prevIndex * ((Math.PI * 2) / asteroidData.length)
+                          
+                          // Animate rotation
+                          const startRotation = orbitalRotation
+                          const duration = 400
+                          const startTime = Date.now()
+                          
+                          const animate = () => {
+                            const elapsed = Date.now() - startTime
+                            const progress = Math.min(elapsed / duration, 1)
+                            const easeProgress = 1 - Math.pow(1 - progress, 3)
+                            const currentRot = startRotation + (targetRotation - startRotation) * easeProgress
+                            
+                            if (window.__orbitalGroupRef) {
+                              window.__orbitalGroupRef.rotation.y = currentRot
+                              setOrbitalRotation(currentRot)
+                            }
+                            
+                            if (progress < 1) {
+                              requestAnimationFrame(animate)
+                            } else {
+                              lastRotationRef.current = targetRotation
+                              setCurrentProfileIndex(prevIndex)
+                            }
+                          }
+                          
+                          animate()
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#e9359e',
+                          fontSize: '20px',
+                          cursor: 'pointer',
+                          padding: '0',
+                          opacity: 0.6,
+                          transition: 'opacity 0.2s',
+                          outline: 'none'
+                        }}
+                        onMouseDown={(e) => e.target.style.opacity = '1'}
+                        onMouseUp={(e) => e.target.style.opacity = '0.6'}
+                        onMouseLeave={(e) => e.target.style.opacity = '0.6'}
+                        onTouchStart={(e) => {
+                          e.stopPropagation()
+                          e.target.style.opacity = '1'
+                        }}
+                        onTouchEnd={(e) => {
+                          e.stopPropagation()
+                          e.target.style.opacity = '0.6'
+                        }}
+                      >
+                        ‹
+                      </button>
+                      <span style={{ fontSize: '10px', alignSelf: 'center', fontFamily: 'monospace', pointerEvents: 'none' }}>
                         Swipe to browse
                       </span>
-                      <span>›</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          const nextIndex = (currentProfileIndex + 1) % asteroidData.length
+                          const targetRotation = nextIndex * ((Math.PI * 2) / asteroidData.length)
+                          
+                          // Animate rotation
+                          const startRotation = orbitalRotation
+                          const duration = 400
+                          const startTime = Date.now()
+                          
+                          const animate = () => {
+                            const elapsed = Date.now() - startTime
+                            const progress = Math.min(elapsed / duration, 1)
+                            const easeProgress = 1 - Math.pow(1 - progress, 3)
+                            const currentRot = startRotation + (targetRotation - startRotation) * easeProgress
+                            
+                            if (window.__orbitalGroupRef) {
+                              window.__orbitalGroupRef.rotation.y = currentRot
+                              setOrbitalRotation(currentRot)
+                            }
+                            
+                            if (progress < 1) {
+                              requestAnimationFrame(animate)
+                            } else {
+                              lastRotationRef.current = targetRotation
+                              setCurrentProfileIndex(nextIndex)
+                            }
+                          }
+                          
+                          animate()
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#e9359e',
+                          fontSize: '20px',
+                          cursor: 'pointer',
+                          padding: '0',
+                          opacity: 0.6,
+                          transition: 'opacity 0.2s',
+                          outline: 'none'
+                        }}
+                        onMouseDown={(e) => e.target.style.opacity = '1'}
+                        onMouseUp={(e) => e.target.style.opacity = '0.6'}
+                        onMouseLeave={(e) => e.target.style.opacity = '0.6'}
+                        onTouchStart={(e) => {
+                          e.stopPropagation()
+                          e.target.style.opacity = '1'
+                        }}
+                        onTouchEnd={(e) => {
+                          e.stopPropagation()
+                          e.target.style.opacity = '0.6'
+                        }}
+                      >
+                        ›
+                      </button>
                     </div>
 
                     <style>{`
