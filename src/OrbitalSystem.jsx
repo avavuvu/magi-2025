@@ -35,7 +35,7 @@ function getSharedMaterial(type) {
         color: '#ffffff',
         metalness: 0.01,
         roughness: 2,
-        emissive: new THREE.Color('#ffffffff'),
+        emissive: new THREE.Color('#ffffff'),
         emissiveIntensity: 0.6,
         precision: 'mediump',
         fog: true
@@ -213,12 +213,11 @@ const GLBOrbitingSphere = memo(({
 
 GLBOrbitingSphere.displayName = 'GLBOrbitingSphere'
 
-// Central Sphere - MEMOIZED with invalidate
-const CentralSphere = memo(() => {
+
+const CentralSphere = memo(({ hideBanner = false }) => {
   const meshRef = useRef()
   const invalidate = useThree((state) => state.invalidate)
   
-  // Animation loop - runs every frame for smooth rotation
   useFrame((state) => {
     if (!meshRef.current) return
     
@@ -232,42 +231,43 @@ const CentralSphere = memo(() => {
     <mesh ref={meshRef} material={getSharedMaterial('planet')}>
       <sphereGeometry args={[1, 32, 32]} />
       
-      <Html distanceFactor={8} position={[0, 0, 0]} center>
-        <div style={{
-          textAlign: 'center',
-          pointerEvents: 'none',
-          userSelect: 'none',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '0px'
-        }}>
-          <img 
-            src="/MAGI_Banner.webp" 
-            alt="ORBITS MAGI EXPO 2025"
-            style={{
-              width: '350px',
-              height: 'auto',
-              filter: 'drop-shadow(0 0 20px rgba(255, 255, 255, 0.5))',
-              marginBottom: '10px'
-            }}
-          />
+      {/* Only show MAGI_Banner when hideBanner is false */}
+      {!hideBanner && (
+        <Html distanceFactor={8} position={[0, 0, 0]} center>
           <div style={{
-            fontSize: '14px',
-            fontFamily: 'monospace',
-            color: '#000000',
-           //textShadow: '0 0 4px #000000',
-            letterSpacing: '3px',
-            textTransform: 'uppercase',
-           // background: 'rgba(0, 0, 0, 0.9',
-            padding: '6px 16px',
-           // border: '1px solid rgba(255, 255, 255, 0.3)',
-            backdropFilter: 'blur(5px)'
+            textAlign: 'center',
+            pointerEvents: 'none',
+            userSelect: 'none',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '0px'
           }}>
-            RMIT EXPO 2025
+            <img 
+              src="/MAGI_Banner.webp" 
+              alt="ORBITS MAGI EXPO 2025"
+              style={{
+                width: '350px',
+                height: 'auto',
+                filter: 'drop-shadow(0 0 20px rgba(255, 255, 255, 0.5))',
+                marginBottom: '10px',
+                border: '1px solid black'
+              }}
+            />
+            <div style={{
+              fontSize: '14px',
+              fontFamily: 'monospace',
+              color: '#000000',
+              letterSpacing: '3px',
+              textTransform: 'uppercase',
+              padding: '6px 16px',
+              backdropFilter: 'blur(5px)'
+            }}>
+              RMIT EXPO 2025
+            </div>
           </div>
-        </div>
-      </Html>
+        </Html>
+      )}
     </mesh>
   )
 })
@@ -459,7 +459,6 @@ const AsteroidField = memo(({ asteroidData = [], searchTerm = '' }) => {
             gap: '12px',
             alignItems: 'flex-start'
           }}>
-            {/* Profile Picture - fixed size, only loads on hover */}
             <div style={{
               width: '60px',
               height: '60px',
@@ -474,7 +473,6 @@ const AsteroidField = memo(({ asteroidData = [], searchTerm = '' }) => {
                 alt={hoveredAsteroid.name}
                 loading="lazy"
                 onError={(e) => {
-                  // Fallback to placeholder if image doesn't exist
                   e.target.src = '/profiles/placeholder.webp'
                 }}
                 style={{
@@ -624,8 +622,9 @@ const AsteroidField = memo(({ asteroidData = [], searchTerm = '' }) => {
 
 AsteroidField.displayName = 'AsteroidField'
 
-// Main Orbital System
-export function OrbitalSystem({ searchTerm = '' }) {
+// Then update OrbitalSystem to accept and pass the hideBanner prop:
+
+export function OrbitalSystem({ searchTerm = '', hideBanner = false }) {
   const { asteroidData, isLoading, error } = useAsteroidData()
 
   if (isLoading) {
@@ -636,7 +635,7 @@ export function OrbitalSystem({ searchTerm = '' }) {
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          color: '#4a9eff',
+          color: '#e9359e',
           fontFamily: 'monospace',
           fontSize: '14px',
           textAlign: 'center'
@@ -646,7 +645,7 @@ export function OrbitalSystem({ searchTerm = '' }) {
             width: '40px',
             height: '40px',
             border: '3px solid rgba(74, 158, 255, 0.3)',
-            borderTop: '3px solid #4a9eff',
+            borderTop: '3px solid #e9359e',
             borderRadius: '50%',
             margin: '0 auto',
             animation: 'spin 1s linear infinite'
@@ -684,10 +683,10 @@ export function OrbitalSystem({ searchTerm = '' }) {
 
   return (
     <>
-      {/* ✅ HIGH PRIORITY FIX #2: Add Performance Regressor */}
       <PerformanceRegressor />
       
-      <CentralSphere />
+      {/* Pass hideBanner prop to CentralSphere */}
+      <CentralSphere hideBanner={hideBanner} />
       
       <AsteroidField 
         asteroidData={asteroidData} 
@@ -781,7 +780,9 @@ export const SearchBar = memo(({ searchTerm, onSearchChange }) => {
       left: '50%',
       transform: 'translateX(-50%)',
       zIndex: 9999,
-      pointerEvents: 'auto'
+      pointerEvents: 'auto',
+      width: 'calc(100% - 40px)', // Only change: responsive width
+      maxWidth: '500px' // Only change: limit on desktop
     }}>
       <div style={{
         background: 'rgba(0, 0, 0, 0.8)',
@@ -804,7 +805,8 @@ export const SearchBar = memo(({ searchTerm, onSearchChange }) => {
             color: 'white',
             fontSize: '14px',
             fontFamily: 'monospace',
-            width: '400px',
+            width: '100%', // Changed from 400px
+            maxWidth: '400px', // Keeps original max size
             padding: '4px 0',
             pointerEvents: 'auto'
           }}
@@ -815,10 +817,10 @@ export const SearchBar = memo(({ searchTerm, onSearchChange }) => {
             style={{
               background: 'none',
               border: 'none',
-              color: '#4a9eff',
+              color: '#e9359e',
               cursor: 'pointer',
               marginLeft: '10px',
-              fontSize: '14px',
+              fontSize: '14px', // Original size
               padding: '4px',
               pointerEvents: 'auto'
             }}
