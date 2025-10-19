@@ -473,22 +473,22 @@ export default function App() {
                 >
                   <div style={{
                     animation: 'fadeIn 0.3s ease-out',
-                    width: '90vw',
-                    maxWidth: '350px',
+                    width: '65vw',
+                    maxWidth: '320px',
                     transform: 'translate(0, 0)'
                   }}>
                     <div style={{
                       background: 'rgba(0, 0, 0, 0.95)',
                       border: '2px solid rgba(233, 53, 158, 1)',
                       borderRadius: '0px',
-                      padding: '20px',
+                      padding: '16px',
                       backdropFilter: 'blur(20px)'
                     }}>
                       {/* Profile Picture */}
                       <div style={{
-                        width: '100px',
-                        height: '100px',
-                        margin: '0 auto 12px',
+                        width: '80px',
+                        height: '80px',
+                        margin: '0 auto 10px',
                         borderRadius: '8px',
                         overflow: 'hidden',
                         border: '2px solid rgba(233, 53, 158, 0.5)',
@@ -515,13 +515,13 @@ export default function App() {
                       {/* Name - FIXED HEIGHT FOR 2 LINES */}
                       <h2 style={{
                         color: '#ffffff',
-                        fontSize: '18px',
+                        fontSize: '15px',
                         fontFamily: 'monospace',
                         fontWeight: 'bold',
                         textAlign: 'center',
                         marginBottom: '6px',
                         letterSpacing: '0.5px',
-                        height: '48px',
+                        height: '42px',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -541,7 +541,7 @@ export default function App() {
                           border: '1px solid rgba(233, 53, 158, 1)',
                           color: '#e9359e',
                           padding: '4px 12px',
-                          fontSize: '10px',
+                          fontSize: '9px',
                           fontFamily: 'monospace',
                           textTransform: 'uppercase',
                           letterSpacing: '1px',
@@ -555,7 +555,7 @@ export default function App() {
                       {currentProfile.workTitle ? (
                         <div style={{
                           color: '#cccccc',
-                          fontSize: '12px',
+                          fontSize: '11`px',
                           fontFamily: 'monospace',
                           textAlign: 'center',
                           marginBottom: '10px',
@@ -574,13 +574,13 @@ export default function App() {
                       {/* Bio */}
                       <div style={{
                         color: '#aaaaaa',
-                        fontSize: '11px',
+                        fontSize: '9px',
                         fontFamily: 'monospace',
-                        lineHeight: '1.5',
+                        lineHeight: '1.4',
                         textAlign: 'center',
-                        height: '100px',
+                        height: '90px',
                         overflowY: 'auto',
-                        padding: '0 8px',
+                        padding: '0 6px',
                         display: 'flex',
                         alignItems: 'flex-start',
                         justifyContent: 'center'
@@ -595,10 +595,10 @@ export default function App() {
                     <div style={{
                       display: 'flex',
                       justifyContent: 'space-between',
-                      marginTop: '12px',
-                      padding: '0 20px',
+                      marginTop: '9px',
+                      padding: '0 16px',
                       color: '#e9359e',
-                      fontSize: '24px',
+                      fontSize: '20px',
                       opacity: 0.6
                     }}>
                       <span>‹</span>
