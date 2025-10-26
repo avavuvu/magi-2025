@@ -4,12 +4,13 @@ import Layout from "../layouts/Layout.astro";
 
 import MobileLander from "@/three/MobileLander"
 import DesktopLander from "@/three/DesktopLander"
+import convertToUrl from "src/lib/convertUrl";
 
 const projects = await getCollection("projects")
 
-const projectArray = projects.map(({rendered, data, id}) => ({
+const projectArray = projects.map(({rendered, data}) => ({
 	...data, 
-	id,
+	id: convertToUrl(data.title),
 	description: rendered!.html,
 }))
 
@@ -19,12 +20,12 @@ const projectArray = projects.map(({rendered, data, id}) => ({
 	<div class="lg:hidden block">
 		<MobileLander 
 			projects={projectArray}
-			client:load/>
+			client:only="react"/>
 	</div>
 	<div class="lg:block hidden">
 		<DesktopLander
 			projects={projectArray}
-			client:load
+			client:only="react"
 		/>
 	</div>
 </Layout>

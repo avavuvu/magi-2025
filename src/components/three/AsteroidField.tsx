@@ -50,6 +50,7 @@ const AsteroidField = ({projects, isMobile}: {projects: ProjectData[], isMobile:
         }
         
         hitboxRef.current.instanceMatrix.needsUpdate = true
+        hitboxRef.current.computeBoundingSphere()
     }, [])
 
     return (
@@ -69,17 +70,23 @@ const AsteroidField = ({projects, isMobile}: {projects: ProjectData[], isMobile:
                     frustumCulled={false}
                     renderOrder={1}
                     onPointerEnter={(event) => {
-                        if(!event.instanceId) { return }
                         event.stopPropagation();
+                        if(!event.instanceId) { return }
 
                         document.body.style.cursor = "pointer"
 
                         setActiveIndex(event.instanceId)
                         setPoint(event.point.toArray())
                     }}
-                    onPointerLeave={() => {
-                        document.body.style.cursor = "default"
 
+                    onPointerLeave={(event) => {
+                        event.stopPropagation()
+                        document.body.style.cursor = "default"
+                    }}
+
+                    onPointerUp={(event) => {
+                        event.stopPropagation()
+                        window.location.href = `/projects/${projects[activeIndex].id}`
                     }}
                 >
                     <sphereGeometry args={[1, 8, 6]} />

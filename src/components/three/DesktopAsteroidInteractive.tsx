@@ -12,10 +12,10 @@ const DesktopAsteroidInteractive = ({ projects, activeIndex, point }: { projects
                 point[1],
                 point[2]
             ]}
-            style={{ pointerEvents: 'none', userSelect: 'none' }}
+            style={{ userSelect: 'none' }}
             >
             <a 
-                href={`${profile.id}`}
+                href={`/projects/${profile.id}`}
                 style={{
                 background: 'rgba(0, 0, 0, 0.95)',
                 border: '1px solid rgba(255, 255, 255, 1)',
