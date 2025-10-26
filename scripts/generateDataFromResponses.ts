@@ -6,7 +6,8 @@ import { stringify } from "yaml";
 const HEADERS = [
     "timestamp",
     "videoUrl",
-    "fullName",
+    "fullName", 
+    "workTitle",
     "studentNumber",
     "personalEmail",
     "personalProfile",
@@ -17,9 +18,8 @@ const HEADERS = [
     "workType",
     "recentFavorite",
     "ownDeviceOrWifi",
-    "workFileUrl",
-    "workTitle"
-] as const
+    "workFileUrl"
+] as const;
 
 type AllHeaders = {
   [K in typeof HEADERS[number]]: string;
@@ -35,6 +35,9 @@ type Student = Omit<CollectionEntry<"students">["data"], "image"> & { image?: st
 const IMAGE_DIR = "scripts/data/images";
 const OUTPUT_DIR = "scripts/data"
 const IMAGE_OUTPUT_DIR = "/src/assets/images"
+await fs.mkdir(IMAGE_DIR, { recursive: true })
+await fs.mkdir(`${OUTPUT_DIR}/students`, { recursive: true })
+await fs.mkdir(`${OUTPUT_DIR}/projects`, { recursive: true })
 const images = await fs.readdir(IMAGE_DIR)
 
 const downloadImage = async (imageId: string, fileName: string): Promise<string> => {
@@ -84,9 +87,7 @@ const generateDataFromResponses = async () => {
         console.error("No path provided")
         return
     }
-    await fs.mkdir(IMAGE_DIR, { recursive: true })
-    await fs.mkdir(`${OUTPUT_DIR}/students`, { recursive: true })
-    await fs.mkdir(`${OUTPUT_DIR}/projects`, { recursive: true })
+    
 
     // needs to be mutuable for some reason, so clone it
     const headers = [...HEADERS]
@@ -98,6 +99,8 @@ const generateDataFromResponses = async () => {
         ignoreColumns: new RegExp(IGNORED.join("|"))
 
     }).fromFile(path)
+
+    console.log(submissions)
 
     const websiteRegex = /^(https?:\/\/)?([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(\/[^\s]*)?$/
     const imageIdRegex = /(?<=id=)[^&?]+/
@@ -174,6 +177,8 @@ const generateDataFromResponses = async () => {
 }
 
 await generateDataFromResponses()
+
+/// helpers 
 
 function convertToUrl(value: string) {
     return value
