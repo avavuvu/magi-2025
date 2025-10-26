@@ -3,6 +3,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { Line } from "@react-three/drei"
 
+
 export function Frame() {
     return (
         <Canvas gl={{alpha: true}}  camera={{ position: [8, 6, 8], fov: 35 }}>

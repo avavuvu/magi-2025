@@ -9,7 +9,7 @@
     "astro": "astro"
   },
   "dependencies": {
-    "@astrojs/react": "^4.3.1",
+    "@astrojs/react": "4.4.0",
     "@react-three/drei": "^10.7.6",
     "@react-three/fiber": "^9.4.0",
     "@tailwindcss/vite": "^4.1.13",
@@ -17,7 +17,7 @@
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.9",
     "@types/three": "^0.180.0",
-    "astro": "^5.13.4",
+    "astro": "5.14.6",
     "csv": "^6.4.1",
     "csvtojson": "^2.0.10",
     "prettier": "^3.6.2",

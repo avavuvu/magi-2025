@@ -1,30 +1,32 @@
 ---
 import { getCollection } from "astro:content";
 import Layout from "../layouts/Layout.astro";
-import convertToUrl from "../lib/convertUrl";
-import { Frame } from "@/three/Frame";
+
+import MobileLander from "@/three/MobileLander"
+import DesktopLander from "@/three/DesktopLander"
 
 const projects = await getCollection("projects")
 
-const projectsCategorized = Object.entries(Object.groupBy(projects, (project) => project.data.category))
+const projectArray = projects.map(({rendered, data, id}) => ({
+	...data, 
+	id,
+	description: rendered!.html,
+}))
+
 ---
 
 <Layout>
-	{projectsCategorized.map(([category, projects]) => 
-		<div>
-			<h2>{category}</h2>
-
-			<ul>
-				{projects.map(project => (
-					<li>
-						<a href={`/projects/${convertToUrl(project.data.title)}`}>
-							{project.data.title}
-						</a>
-					</li>
-				))}
-			</ul>
-		</div>
-	)}
+	<div class="lg:hidden block">
+		<MobileLander 
+			projects={projectArray}
+			client:load/>
+	</div>
+	<div class="lg:block hidden">
+		<DesktopLander
+			projects={projectArray}
+			client:load
+		/>
+	</div>
 </Layout>
 
 <style>
