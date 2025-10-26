@@ -6,30 +6,10 @@ import type { ProjectData } from "src/lib/types";
 import MobileProfiles from "@/MobileProfiles";
 import { useScrollAnimation } from "src/lib/useScrollAnimation";
 import { useEffect, useRef, useState } from "react";
+import { cameraSettings, glSettings } from "src/lib/canvasSettings";
 
 
 const Lander = ({ projects }: { projects: ProjectData[] }) => {
-    const glSettings: GLProps = {
-        antialias: false,
-        powerPreference: "high-performance",
-        alpha: true,
-        stencil: false,
-        depth: true,
-        toneMapping: NoToneMapping,
-        preserveDrawingBuffer: false,
-    };
-
-    const cameraSettings: CameraProps = {
-        position: [8, 8, 8],
-        fov: 35,
-        near: 0.1,
-        far: 1000,
-    };
-
-    const orbitSettings: OrbitControlsProps = {
-        enablePan: false,
-        enableRotate: true,
-    };
 
     const orbitRotator = useRef<Group>(null!);
     const target = useRef<HTMLDivElement>(null!);

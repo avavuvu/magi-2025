@@ -2,34 +2,74 @@
 import { getCollection } from "astro:content";
 import Layout from "../layouts/Layout.astro";
 
-import MobileLander from "@/three/MobileLander"
-import DesktopLander from "@/three/DesktopLander"
 import convertToUrl from "src/lib/convertUrl";
+import Lander from "@/Lander";
 
-const projects = await getCollection("projects")
+const projects = await getCollection("projects");
 
-const projectArray = projects.map(({rendered, data}) => ({
-	...data, 
-	id: convertToUrl(data.title),
-	description: rendered!.html,
-}))
-
+const projectArray = projects.map(({ rendered, data }) => ({
+    ...data,
+    id: convertToUrl(data.title),
+    description: rendered!.html,
+}));
 ---
 
 <Layout>
-	<div class="lg:hidden block">
-		<MobileLander 
-			projects={projectArray}
-			client:only="react"/>
-	</div>
-	<div class="lg:block hidden">
-		<DesktopLander
-			projects={projectArray}
-			client:only="react"
-		/>
-	</div>
+    <div class="grid grid-cols-1 grid-rows-1 w-screen h-screen">
+        <div class="row-start-1 row-end-2 col-start-1 col-end-2 z-10 pointer-events-none">
+            <div class="top-nav">
+
+                <div class="nav-section right">
+                    <button class="ui-button"> PROFILES </button>
+                    <img
+                        src="/MAGI_Logo.png"
+                        alt="MAGI Logo"
+                        class="logo-right h-[60px] w-auto cursor-pointer brightness-[1.2] transition-all duration-300 ease-in-out hover:brightness-[1.5] hover:scale-105 hover:drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]"
+                    />
+                </div>
+            </div>
+
+            <div class="bottom-nav pointer-events-auto">
+                <div class="info-section">
+                    <span class="info-text"
+                        >Masters of Animation, Games & Interactivity</span
+                    >
+                </div>
+                <div class="info-section right flex items-center gap-2">
+                    <div
+                        class="w-40 h-[30px] bg-gradient-to-r from-[#0074D9] via-[#00CED1] to-[#7FFFD4] border border-white relative overflow-hidden cursor-pointer flex items-center"
+                    >
+                        <div
+                            class="absolute whitespace-nowrap text-white text-xs font-mono font-bold tracking-wider z-[5] animate-marquee"
+                        >
+                            ORBITS MAGI EXPO 2025
+                        </div>
+                    </div>
+                    <img
+                        src="/magilogo.svg"
+                        alt="MAGI"
+                        class="h-7 w-auto brightness-0 invert opacity-90 transition-opacity duration-300 hover:opacity-100"
+                    />
+                </div>
+            </div>
+        </div>
+        <div class="row-start-1 row-end-2 col-start-1 col-end-2">
+            <Lander projects={projectArray} client:only="react" />
+        </div>
+    </div>
 </Layout>
 
 <style>
+    @keyframes marquee {
+        0% {
+            transform: translateX(160px);
+        }
+        100% {
+            transform: translateX(-100%);
+        }
+    }
 
+    .animate-marquee {
+        animation: marquee 10s linear infinite;
+    }
 </style>

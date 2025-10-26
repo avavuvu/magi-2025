@@ -3,33 +3,16 @@ import { Canvas, type CameraProps, type GLProps } from "@react-three/fiber";
 import { Group, Mesh, NoToneMapping } from "three";
 import LanderScene from "@/three/LanderScene";
 import type { ProjectData } from "src/lib/types";
+import { cameraSettings, glSettings } from "src/lib/canvasSettings";
 
 const Lander = ({ projects }: { projects: ProjectData[] }) => {
-    const glSettings: GLProps = {
-        antialias: false,
-        powerPreference: "high-performance",
-        alpha: true,
-        stencil: false,
-        depth: true,
-        toneMapping: NoToneMapping,
-        preserveDrawingBuffer: false,
-    };
-
-    const cameraSettings: CameraProps = {
-        position: [8, 8, 8],
-        fov: 35,
-        near: 0.1,
-        far: 1000,
-    };
-
     const orbitSettings: OrbitControlsProps = {
         enablePan: false,
         enableRotate: true,
     };
 
     return (
-        <main className="">
-            <div className="w-screen h-screen">
+
                 <Canvas camera={cameraSettings} gl={glSettings}>
                     <color attach="background" args={["#000000"]} />
                     <fog attach="fog" args={["#000000", 8, 40]} />
@@ -56,8 +39,6 @@ const Lander = ({ projects }: { projects: ProjectData[] }) => {
                     <LanderScene isMobile={false} projects={projects} />
 
                 </Canvas>
-            </div>
-        </main>
     );
 };
 

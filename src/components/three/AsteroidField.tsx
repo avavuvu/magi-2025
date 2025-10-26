@@ -33,6 +33,10 @@ const AsteroidField = ({projects, isMobile}: {projects: ProjectData[], isMobile:
     }, []);
 
     useEffect(() => {
+        if(!hitboxRef.current) {
+            return
+        }
+
         const matrix = new Matrix4()
         const position = new Vector3()
         const rotation = new Quaternion()
@@ -51,7 +55,7 @@ const AsteroidField = ({projects, isMobile}: {projects: ProjectData[], isMobile:
         
         hitboxRef.current.instanceMatrix.needsUpdate = true
         hitboxRef.current.computeBoundingSphere()
-    }, [])
+    }, [hitboxRef])
 
     return (
         <group>
