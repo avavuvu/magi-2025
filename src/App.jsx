@@ -22,9 +22,194 @@ function MobileOrbitalRotator({ children, onRotationChange, enabled }) {
     if (groupRef.current && window) {
       window.__orbitalGroupRef = groupRef.current
     }
+    
+    // CRITICAL: Cleanup on unmount to prevent memory leak
+    return () => {
+      if (window.__orbitalGroupRef) {
+        delete window.__orbitalGroupRef
+      }
+    }
   }, [])
 
   return <group ref={groupRef}>{children}</group>
+}
+
+// NEW: Mobile Search Component - Desktop styled
+function MobileSearchBar({ asteroidData, onProfileSelect, currentProfileIndex, onSearchActiveChange }) {
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filteredProfiles, setFilteredProfiles] = useState([])
+  const [showResults, setShowResults] = useState(false)
+  
+  // Notify parent when search results are shown/hidden
+  useEffect(() => {
+    if (onSearchActiveChange) {
+      onSearchActiveChange(showResults && (filteredProfiles.length > 0 || searchTerm.trim() !== ''))
+    }
+  }, [showResults, filteredProfiles.length, searchTerm, onSearchActiveChange])
+  
+  useEffect(() => {
+    if (searchTerm.trim() === '') {
+      setFilteredProfiles([])
+      setShowResults(false)
+      return
+    }
+    
+    const term = searchTerm.toLowerCase()
+    const filtered = asteroidData
+      .map((profile, index) => ({ ...profile, originalIndex: index }))
+      .filter(profile => 
+        profile.name?.toLowerCase().includes(term) ||
+        profile.major?.toLowerCase().includes(term) ||
+        profile.bio?.toLowerCase().includes(term) ||
+        profile.workTitle?.toLowerCase().includes(term)
+      )
+      .slice(0, 5) // Limit to 5 results for mobile
+    
+    setFilteredProfiles(filtered)
+    setShowResults(true)
+  }, [searchTerm, asteroidData])
+  
+  const handleProfileClick = (index) => {
+    onProfileSelect(index)
+    setSearchTerm('')
+    setFilteredProfiles([])
+    setShowResults(false)
+  }
+  
+  return (
+    <div style={{
+      position: 'relative',
+      width: '100%'
+    }}>
+      {/* Search Input - Desktop Style */}
+      <input
+        type="text"
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        placeholder="Search students"
+        style={{
+          width: '100%',
+          padding: '10px 15px',
+          background: 'rgba(0, 0, 0, 0.7)',
+          border: '1px solid rgba(255, 255, 255, 0.3)',
+          borderRadius: '4px',
+          color: '#ffffff',
+          fontFamily: 'monospace',
+          fontSize: '16px', // 16px prevents iOS zoom
+          outline: 'none',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+          touchAction: 'manipulation' // Prevent zoom gestures
+        }}
+        onFocus={() => {
+          if (searchTerm.trim() !== '') {
+            setShowResults(true)
+          }
+        }}
+      />
+      
+      {/* Search Results Dropdown */}
+      {showResults && filteredProfiles.length > 0 && (
+        <div style={{
+          position: 'absolute',
+          top: 'calc(100% + 5px)',
+          left: 0,
+          right: 0,
+          background: 'rgba(0, 0, 0, 0.95)',
+          border: '1px solid rgba(255, 255, 255, 0.3)',
+          borderRadius: '4px',
+          maxHeight: '300px',
+          overflowY: 'auto',
+          zIndex: 10003,
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)'
+        }}>
+          {filteredProfiles.map((profile, idx) => (
+            <button
+              key={idx}
+              onClick={() => handleProfileClick(profile.originalIndex)}
+              style={{
+                width: '100%',
+                padding: '10px 15px',
+                background: profile.originalIndex === currentProfileIndex 
+                  ? 'rgba(233, 53, 158, 0.2)' 
+                  : 'transparent',
+                border: 'none',
+                borderBottom: idx < filteredProfiles.length - 1 ? '1px solid rgba(255, 255, 255, 0.1)' : 'none',
+                color: '#ffffff',
+                fontFamily: 'monospace',
+                fontSize: '13px', // Increased from 11px
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'background 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                if (profile.originalIndex !== currentProfileIndex) {
+                  e.target.style.background = 'rgba(255, 255, 255, 0.05)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (profile.originalIndex !== currentProfileIndex) {
+                  e.target.style.background = 'transparent'
+                }
+              }}
+            >
+              <div style={{ 
+                fontWeight: 'bold', 
+                color: '#e9359e',
+                marginBottom: '4px',
+                fontSize: '13px' // Added explicit size for name
+              }}>
+                {profile.name}
+              </div>
+              {profile.major && (
+                <div style={{ 
+                  color: '#aaaaaa',
+                  fontSize: '11px' // Increased from 10px
+                }}>
+                  {profile.major}
+                </div>
+              )}
+              {profile.workTitle && (
+                <div style={{ 
+                  color: '#cccccc',
+                  fontSize: '10px', // Increased from 9px
+                  fontStyle: 'italic',
+                  marginTop: '2px'
+                }}>
+                  "{profile.workTitle}"
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+      
+      {/* No Results Message */}
+      {showResults && searchTerm.trim() !== '' && filteredProfiles.length === 0 && (
+        <div style={{
+          position: 'absolute',
+          top: 'calc(100% + 5px)',
+          left: 0,
+          right: 0,
+          background: 'rgba(0, 0, 0, 0.95)',
+          border: '1px solid rgba(255, 255, 255, 0.3)',
+          borderRadius: '4px',
+          padding: '20px',
+          zIndex: 10003,
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+          textAlign: 'center',
+          color: '#aaaaaa',
+          fontFamily: 'monospace',
+          fontSize: '13px' // Increased from 11px
+        }}>
+          No students found matching "{searchTerm}"
+        </div>
+      )}
+    </div>
+  )
 }
 
 // Archive Dropdown Component
@@ -108,23 +293,119 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('')
   const [isMobile, setIsMobile] = useState(false)
   const [currentProfileIndex, setCurrentProfileIndex] = useState(-1)
+  const [displayProfileIndex, setDisplayProfileIndex] = useState(-1) // NEW: Debounced display index
+  const [searchActive, setSearchActive] = useState(false) // Track if search results are shown
   const [touchStartX, setTouchStartX] = useState(0)
   const [touchStartTime, setTouchStartTime] = useState(0)
   const [lastTouchX, setLastTouchX] = useState(0)
   const [velocity, setVelocity] = useState(0)
   const [hasSwipedOnce, setHasSwipedOnce] = useState(false)
+  const [isClosing, setIsClosing] = useState(false)
+  const [selectedWorkIndex, setSelectedWorkIndex] = useState(0)
+  const [isTitleExpanded, setIsTitleExpanded] = useState(false)
+  const [workSwipeStartX, setWorkSwipeStartX] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
   const [orbitalRotation, setOrbitalRotation] = useState(0)
   const lastRotationRef = useRef(0)
+  const animationFrameRef = useRef(null) // NEW: Track animation frame
+  const lastUpdateTimeRef = useRef(0) // NEW: Track last update time for throttling
+  const profileUpdateTimeoutRef = useRef(null) // NEW: For debouncing profile display updates
   
   const canvasRef = useRef()
   
   // Get asteroid data for mobile profiles
-  const { asteroidData, isLoading } = useAsteroidData()
+  const { asteroidData: rawAsteroidData, isLoading } = useAsteroidData()
+  
+  const asteroidData = useMemo(() => {
+    return rawAsteroidData.filter(profile => 
+      profile && 
+      profile.name && 
+      profile.name.trim() !== '' &&
+      profile.studentNumber &&
+      profile.studentNumber.trim() !== ''
+    )
+  }, [rawAsteroidData])
+  
+  // Reset work selection when displayed profile changes
+  useEffect(() => {
+    setSelectedWorkIndex(0)
+    setIsTitleExpanded(false)
+  }, [displayProfileIndex])
   
   const handleSearchChange = useCallback((value) => {
     setSearchTerm(value)
   }, [])
+
+  // NEW: Handle closing with animation
+  const handleClose = useCallback(() => {
+    setIsClosing(true)
+    setSelectedWorkIndex(0) // Reset work selection
+    setTimeout(() => {
+      setHasSwipedOnce(false)
+      setCurrentProfileIndex(-1)
+      setDisplayProfileIndex(-1) // Reset display index
+      setOrbitalRotation(0)
+      lastRotationRef.current = 0
+      if (window.__orbitalGroupRef) {
+        window.__orbitalGroupRef.rotation.y = 0
+      }
+      setIsClosing(false)
+    }, 300) // Match fadeOut animation duration
+  }, [])
+
+  // NEW: Jump to specific profile from search
+  const handleProfileSelect = useCallback((targetIndex) => {
+    if (!isMobile || asteroidData.length === 0) return
+    
+    // Cancel any ongoing animation
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current)
+      animationFrameRef.current = null
+    }
+    
+    const segmentSize = (Math.PI * 2) / asteroidData.length
+    const targetRotation = targetIndex * segmentSize
+    const startRotation = orbitalRotation
+    const duration = 600
+    const startTime = Date.now()
+    
+    // Enable profile view if not already
+    if (!hasSwipedOnce) {
+      setHasSwipedOnce(true)
+    }
+    
+    const animate = () => {
+      const elapsed = Date.now() - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      const easeProgress = 1 - Math.pow(1 - progress, 3)
+      
+      // Calculate shortest rotation path
+      let delta = targetRotation - startRotation
+      const twoPi = Math.PI * 2
+      
+      // Normalize delta to be between -PI and PI
+      while (delta > Math.PI) delta -= twoPi
+      while (delta < -Math.PI) delta += twoPi
+      
+      const currentRot = startRotation + delta * easeProgress
+      
+      if (window.__orbitalGroupRef) {
+        window.__orbitalGroupRef.rotation.y = currentRot
+        setOrbitalRotation(currentRot)
+      }
+      
+      if (progress < 1) {
+        animationFrameRef.current = requestAnimationFrame(animate)
+      } else {
+        lastRotationRef.current = targetRotation
+        setCurrentProfileIndex(targetIndex)
+        setDisplayProfileIndex(targetIndex) // Update display immediately
+        animationFrameRef.current = null
+      }
+    }
+    
+    animate()
+  }, [isMobile, asteroidData.length, orbitalRotation, hasSwipedOnce])
 
   // Detect mobile on mount and resize
   useEffect(() => {
@@ -136,18 +417,53 @@ export default function App() {
         setHasSwipedOnce(false)
         setOrbitalRotation(0)
         lastRotationRef.current = 0
+        // NEW: Cancel animation on desktop switch
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current)
+          animationFrameRef.current = null
+        }
       }
     }
     
     checkMobile()
     window.addEventListener('resize', checkMobile)
     
-    return () => window.removeEventListener('resize', checkMobile)
+    // Cleanup animation on unmount and add visibility change handler to pause when hidden
+    const handleVisibilityChange = () => {
+      if (document.hidden && animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+        animationFrameRef.current = null
+      }
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    
+return () => {
+      window.removeEventListener('resize', checkMobile)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+        animationFrameRef.current = null
+      }
+      // CRITICAL: Clean up window reference to prevent memory leak
+      if (window.__orbitalGroupRef) {
+        delete window.__orbitalGroupRef
+      }
+    }
   }, [])
 
   // Mobile touch handlers for orbital rotation
   const handleTouchStart = useCallback((e) => {
     if (!isMobile) return
+    
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current)
+      animationFrameRef.current = null
+    }
+    
+    const currentRotation = window.__orbitalGroupRef?.rotation.y || 0
+    lastRotationRef.current = currentRotation
+    
     setTouchStartX(e.touches[0].clientX)
     setLastTouchX(e.touches[0].clientX)
     setTouchStartTime(Date.now())
@@ -157,78 +473,137 @@ export default function App() {
     if (!hasSwipedOnce) {
       setHasSwipedOnce(true)
       setCurrentProfileIndex(0)
+      setDisplayProfileIndex(0)
     }
   }, [isMobile, hasSwipedOnce])
 
   const handleTouchMove = useCallback((e) => {
     if (!isMobile || !isDragging) return
     
-    const currentX = e.touches[0].clientX
     const currentTime = Date.now()
     
-    // Calculate rotation based on drag distance - FREE FLOWING
+    // Throttle updates to every 32ms (~30fps) - more aggressive to prevent crashes
+    if (currentTime - lastUpdateTimeRef.current < 32) {
+      return
+    }
+    lastUpdateTimeRef.current = currentTime
+    
+    const currentX = e.touches[0].clientX
+    
+    // Calculate rotation based on drag distance - Heavy weight, requires 3-4 cycles for all entries
     const dragDelta = currentX - touchStartX
-    const rotationDelta = (dragDelta / window.innerWidth) * Math.PI * 1.5
+    const rotationDelta = (dragDelta / window.innerWidth) * Math.PI * 0.25 // Reduced from 0.8 to 0.25 (70% reduction)
     const newRotation = lastRotationRef.current + rotationDelta
     
-    // Calculate velocity for momentum
+    // Calculate velocity for momentum (but don't update state every frame)
     const timeDelta = currentTime - touchStartTime
     const moveDelta = currentX - lastTouchX
     if (timeDelta > 0) {
-      setVelocity((moveDelta / timeDelta) * 16) // Scale for smoother momentum
+      // Much lower velocity cap for heavy, weighty feel (reduced from 25 to 12)
+      const newVelocity = Math.min(Math.max((moveDelta / timeDelta) * 16, -12), 12)
+      setVelocity(newVelocity)
     }
     
     setLastTouchX(currentX)
     
-    // Apply rotation to the orbital system
+    // Apply rotation ONLY to the visual - skip React state during drag
     if (window.__orbitalGroupRef) {
       window.__orbitalGroupRef.rotation.y = newRotation
-      setOrbitalRotation(newRotation)
+      // Don't update React state during drag - only update visual
     }
     
-    // LIVE UPDATE: Calculate which profile is currently closest
-    if (asteroidData.length > 0) {
-      const segmentSize = (Math.PI * 2) / asteroidData.length
-      const normalizedRotation = ((newRotation % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)
-      const liveProfileIndex = Math.round(normalizedRotation / segmentSize) % asteroidData.length
-      setCurrentProfileIndex(liveProfileIndex)
-    }
-  }, [isMobile, isDragging, touchStartX, touchStartTime, lastTouchX, asteroidData.length])
+    // REMOVED: No live profile updates during drag - reduces state updates and flickering
+  }, [isMobile, isDragging, touchStartX, touchStartTime, lastTouchX])
 
   const handleTouchEnd = useCallback(() => {
     if (!isMobile || !isDragging || asteroidData.length === 0) return
     
     setIsDragging(false)
     
-    // ROULETTE-STYLE MOMENTUM SPIN
-    const friction = 0.95 // How quickly the spin slows down
-    const minVelocity = 0.001 // Minimum velocity before stopping
-    let currentVelocity = velocity * 0.01 // Convert to rotation velocity
-    let currentRotation = orbitalRotation
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current)
+      animationFrameRef.current = null
+    }
+    
+    if (profileUpdateTimeoutRef.current) {
+      clearTimeout(profileUpdateTimeoutRef.current)
+      profileUpdateTimeoutRef.current = null
+    }
+    
+    const actualCurrentRotation = window.__orbitalGroupRef?.rotation.y || 0
+    const segmentSize = (Math.PI * 2) / asteroidData.length
+    
+    const normalizedRotation = ((actualCurrentRotation % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)
+    const immediateIndex = Math.round(normalizedRotation / segmentSize) % asteroidData.length
+    setCurrentProfileIndex(immediateIndex)
+    setDisplayProfileIndex(immediateIndex)
+    
+    // ROULETTE-STYLE MOMENTUM SPIN with heavy, weighty feel
+    const friction = 0.985
+    const minVelocity = 0.008
+    const maxVelocity = 0.05
+    
+    // Very low velocity multiplier for heavy, deliberate movement
+    let currentVelocity = Math.min(Math.max(velocity * 0.003, -maxVelocity), maxVelocity) // Reduced from 0.006 to 0.003
+    let currentRotation = actualCurrentRotation // Use actual rotation, not stale state
+    
+    let frameCount = 0
+    const maxFrames = 60
+    let consecutiveSlowFrames = 0
+    let lastFrameTime = performance.now()
     
     const momentumSpin = () => {
+      const currentFrameTime = performance.now()
+      const frameDelta = currentFrameTime - lastFrameTime
+      lastFrameTime = currentFrameTime
+      
+      // Emergency stop if frames are too slow (more than 50ms = less than 20fps)
+      if (frameDelta > 50) {
+        consecutiveSlowFrames++
+        if (consecutiveSlowFrames > 3) {
+          lastRotationRef.current = currentRotation
+          const finalIndex = Math.round(((currentRotation % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / segmentSize) % asteroidData.length
+          setCurrentProfileIndex(finalIndex)
+          setDisplayProfileIndex(finalIndex)
+          animationFrameRef.current = null
+          return
+        }
+      } else {
+        consecutiveSlowFrames = 0
+      }
+      
+      frameCount++ // Increment frame counter
+      
+      // Safety check: stop after max frames
+      if (frameCount > maxFrames) {
+        lastRotationRef.current = currentRotation // Keep actual rotation
+        const finalIndex = Math.round(((currentRotation % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / segmentSize) % asteroidData.length
+        setCurrentProfileIndex(finalIndex)
+        animationFrameRef.current = null
+        return
+      }
+      
       currentVelocity *= friction
-      currentRotation += currentVelocity
       
-      if (window.__orbitalGroupRef) {
-        window.__orbitalGroupRef.rotation.y = currentRotation
-        setOrbitalRotation(currentRotation)
-      }
-      
-      // LIVE UPDATE during momentum: Update profile index continuously
-      if (asteroidData.length > 0) {
-        const segmentSize = (Math.PI * 2) / asteroidData.length
-        const normalizedRotation = ((currentRotation % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)
-        const liveProfileIndex = Math.round(normalizedRotation / segmentSize) % asteroidData.length
-        setCurrentProfileIndex(liveProfileIndex)
-      }
-      
-      // Continue spinning if velocity is significant
       if (Math.abs(currentVelocity) > minVelocity) {
-        requestAnimationFrame(momentumSpin)
+        currentRotation += currentVelocity
+        
+        if (window.__orbitalGroupRef) {
+          window.__orbitalGroupRef.rotation.y = currentRotation
+        }
+        
+        if (frameCount % 80 === 0) {
+          const normalizedRotation = ((currentRotation % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)
+          const currentIndex = Math.round(normalizedRotation / segmentSize) % asteroidData.length
+          if (currentIndex !== currentProfileIndex) {
+            setCurrentProfileIndex(currentIndex)
+            setDisplayProfileIndex(currentIndex)
+          }
+        }
+        
+        animationFrameRef.current = requestAnimationFrame(momentumSpin)
       } else {
         // SNAP TO NEAREST PROFILE when momentum stops
-        const segmentSize = (Math.PI * 2) / asteroidData.length
         const normalizedRotation = ((currentRotation % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)
         const profileIndex = Math.round(normalizedRotation / segmentSize) % asteroidData.length
         
@@ -270,10 +645,11 @@ export default function App() {
           }
           
           if (progress < 1) {
-            requestAnimationFrame(snapAnimate)
+            animationFrameRef.current = requestAnimationFrame(snapAnimate)
           } else {
             lastRotationRef.current = targetRotation
             setCurrentProfileIndex(profileIndex)
+            animationFrameRef.current = null
           }
         }
         
@@ -281,8 +657,16 @@ export default function App() {
       }
     }
     
-    momentumSpin()
-  }, [isMobile, isDragging, asteroidData.length, orbitalRotation, velocity])
+    if (Math.abs(currentVelocity) > minVelocity) {
+      animationFrameRef.current = requestAnimationFrame(momentumSpin)
+    } else {
+      const normalizedRotation = ((currentRotation % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)
+      const nearestIndex = Math.round(normalizedRotation / segmentSize) % asteroidData.length
+      lastRotationRef.current = nearestIndex * segmentSize
+      setCurrentProfileIndex(nearestIndex)
+      setDisplayProfileIndex(nearestIndex)
+    }
+  }, [isMobile, isDragging, asteroidData.length, velocity, currentProfileIndex])
 
   // Memoize camera settings - adjusted for mobile
   const cameraSettings = useMemo(() => ({
@@ -302,11 +686,23 @@ export default function App() {
     preserveDrawingBuffer: false
   }), [])
 
-  // Current profile for mobile overlay
-  const currentProfile = currentProfileIndex >= 0 ? asteroidData[currentProfileIndex] : null
+  const currentProfile = displayProfileIndex >= 0 ? asteroidData[displayProfileIndex] : null
+  
+  // Get current work info for profiles with multiple works
+  const hasMultipleWorks = currentProfile?.works && currentProfile.works.length > 1
+  const currentWork = currentProfile?.works?.[selectedWorkIndex] || {
+    title: currentProfile?.workTitle || 'Untitled Work',
+    type: currentProfile?.workType || 'Creative Work'
+  }
 
   return (
-    <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ 
+      width: '100vw', 
+      height: '100vh', 
+      position: 'relative', 
+      overflow: 'hidden',
+      touchAction: 'pan-x pan-y' // Allow panning but prevent pinch-zoom
+    }}>
       {/* Search Bar - Hide on mobile */}
       {!isMobile && (
         <div className="search-bar-container">
@@ -340,6 +736,28 @@ export default function App() {
               }}
             />
           </div>
+            
+          {/* NEW: Mobile Search Bar - Centered between logo and button */}
+          {isMobile && asteroidData.length > 0 && (
+            <div style={{
+              position: 'absolute',
+              left: '46%',
+              transform: 'translateX(-50%) scale(0.75)', // Scale down visually
+              transformOrigin: 'center',
+              width: 'calc((100% - 380px) / 0.75)', // Compensate for scale
+              maxWidth: '600px', // Adjusted for scale
+              minWidth: '226px', // Adjusted for scale
+              display: 'flex',
+              justifyContent: 'center'
+            }}>
+              <MobileSearchBar 
+                asteroidData={asteroidData}
+                onProfileSelect={handleProfileSelect}
+                currentProfileIndex={currentProfileIndex}
+                onSearchActiveChange={setSearchActive}
+              />
+            </div>
+          )}
          
           <div className="nav-section right">
             <button className="ui-button">
@@ -434,7 +852,7 @@ export default function App() {
       </div>
 
       {/* Profile Counter - Mobile only, shows when browsing */}
-      {isMobile && hasSwipedOnce && currentProfile && (
+      {isMobile && hasSwipedOnce && currentProfile && !searchActive && (
         <div style={{
           position: 'absolute',
           bottom: '120px',
@@ -451,7 +869,7 @@ export default function App() {
           fontWeight: 'bold',
           pointerEvents: 'none'
         }}>
-          {currentProfileIndex + 1} / {asteroidData.length}
+          {displayProfileIndex + 1} / {asteroidData.length}
         </div>
       )}
 
@@ -486,11 +904,15 @@ export default function App() {
       >
         <Canvas 
           camera={cameraSettings}
-          dpr={[1, Math.min(window.devicePixelRatio, 2)]}
-          performance={{ min: 0.5 }}
+          dpr={isMobile ? [0.75, 1] : [1, 1]}
+          performance={{ min: 0.3, max: 0.8, debounce: 200 }}
           gl={{
             ...glSettings,
-            toneMapping: THREE.NoToneMapping
+            toneMapping: THREE.NoToneMapping,
+            powerPreference: "high-performance",
+            antialias: false,
+            alpha: false,
+            stencil: false
           }}
           frameloop="always"
           flat
@@ -512,11 +934,12 @@ export default function App() {
             >
               <OrbitalSystem 
                 searchTerm={searchTerm} 
-                hideBanner={hasSwipedOnce}
+                hideBanner={hasSwipedOnce && !searchActive}
+                isMobile={isMobile}
               />
               
               {/* Mobile Profile Card - Inside Canvas */}
-              {hasSwipedOnce && currentProfile && (
+              {hasSwipedOnce && currentProfile && !searchActive && (
                 <Html
                   center
                   position={[0, 0, 0]}
@@ -529,13 +952,36 @@ export default function App() {
                   }}
                 >
                   <div style={{
-                    animation: 'fadeIn 0.3s ease-out',
+                    animation: isClosing ? 'fadeOut 0.3s ease-out' : 'fadeIn 0.3s ease-out',
                     width: '60vw',
                     maxWidth: '320px',
                     transform: 'translate(0, 0)',
                     pointerEvents: 'auto'
                   }}>
-                    <div style={{
+                    <div 
+                      onTouchStart={(e) => {
+                        if (hasMultipleWorks) {
+                          setWorkSwipeStartX(e.touches[0].clientX)
+                        }
+                      }}
+                      onTouchEnd={(e) => {
+                        if (hasMultipleWorks && workSwipeStartX) {
+                          const swipeDelta = e.changedTouches[0].clientX - workSwipeStartX
+                          if (Math.abs(swipeDelta) > 50) {
+                            if (swipeDelta > 0) {
+                              setSelectedWorkIndex((prev) => 
+                                (prev - 1 + currentProfile.works.length) % currentProfile.works.length
+                              )
+                            } else {
+                              setSelectedWorkIndex((prev) => 
+                                (prev + 1) % currentProfile.works.length
+                              )
+                            }
+                          }
+                          setWorkSwipeStartX(0)
+                        }
+                      }}
+                      style={{
                       background: 'rgba(0, 0, 0, 0.95)',
                       border: '2px solid rgba(233, 53, 158, 1)',
                       borderRadius: '0px',
@@ -548,13 +994,7 @@ export default function App() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
-                          setHasSwipedOnce(false)
-                          setCurrentProfileIndex(-1)
-                          setOrbitalRotation(0)
-                          lastRotationRef.current = 0
-                          if (window.__orbitalGroupRef) {
-                            window.__orbitalGroupRef.rotation.y = 0
-                          }
+                          handleClose()
                         }}
                         onTouchStart={(e) => e.stopPropagation()}
                         onTouchEnd={(e) => e.stopPropagation()}
@@ -601,7 +1041,8 @@ export default function App() {
                             : '/profiles/placeholder.webp'
                           }
                           alt={currentProfile.name}
-                          loading="eager"
+                          loading="lazy"
+                          decoding="async"
                           onError={(e) => {
                             e.target.src = '/profiles/placeholder.webp'
                           }}
@@ -631,11 +1072,54 @@ export default function App() {
                         {currentProfile.name}
                       </h2>
 
-                      {/* Work Type Badge */}
+                      {/* Work Type Badge with Inline Work Navigation */}
                       <div style={{
                         textAlign: 'center',
-                        marginBottom: '12px'
+                        marginBottom: '12px',
+                        height: '22px', // Fixed height matching original badge height
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px'
                       }}>
+                        {/* Previous work arrow */}
+                        {hasMultipleWorks && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedWorkIndex((prev) => 
+                                prev === 0 ? currentProfile.works.length - 1 : prev - 1
+                              )
+                            }}
+                            onTouchStart={(e) => e.stopPropagation()}
+                            onTouchEnd={(e) => {
+                              e.stopPropagation()
+                              setSelectedWorkIndex((prev) => 
+                                prev === 0 ? currentProfile.works.length - 1 : prev - 1
+                              )
+                            }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#e9359e',
+                              fontSize: '16px', // Increased from 12px for larger arrow
+                              cursor: 'pointer',
+                              padding: '8px', // Added padding for larger hit area
+                              margin: '-8px', // Negative margin to maintain visual position
+                              opacity: 0.6,
+                              transition: 'opacity 0.2s',
+                              outline: 'none',
+                              minWidth: '32px', // Minimum touch target size
+                              minHeight: '32px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            ‹
+                          </button>
+                        )}
+                        
                         <span style={{
                           display: 'inline-block',
                           background: 'rgba(233, 53, 158, 0.2)',
@@ -648,29 +1132,118 @@ export default function App() {
                           letterSpacing: '1px',
                           borderRadius: '4px'
                         }}>
-                          {currentProfile.workType}
+                          {currentWork.type}
+                          {hasMultipleWorks && (
+                            <span style={{ 
+                              marginLeft: '6px',
+                              fontSize: '7px',
+                              opacity: 0.7
+                            }}>
+                              {selectedWorkIndex + 1}/{currentProfile.works.length}
+                            </span>
+                          )}
                         </span>
+                        
+                        {/* Next work arrow */}
+                        {hasMultipleWorks && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedWorkIndex((prev) => 
+                                (prev + 1) % currentProfile.works.length
+                              )
+                            }}
+                            onTouchStart={(e) => e.stopPropagation()}
+                            onTouchEnd={(e) => {
+                              e.stopPropagation()
+                              setSelectedWorkIndex((prev) => 
+                                (prev + 1) % currentProfile.works.length
+                              )
+                            }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#e9359e',
+                              fontSize: '16px', // Increased from 12px for larger arrow
+                              cursor: 'pointer',
+                              padding: '8px', // Added padding for larger hit area
+                              margin: '-8px', // Negative margin to maintain visual position
+                              opacity: 0.6,
+                              transition: 'opacity 0.2s',
+                              outline: 'none',
+                              minWidth: '32px', // Minimum touch target size
+                              minHeight: '32px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            ›
+                          </button>
+                        )}
                       </div>
 
-                      {/* Project Title */}
-                      {currentProfile.workTitle ? (
-                        <div style={{
-                          color: '#cccccc',
-                          fontSize: '11px',
-                          fontFamily: 'monospace',
-                          textAlign: 'center',
-                          marginBottom: '10px',
-                          fontStyle: 'italic',
-                          height: '20px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}>
-                          "{currentProfile.workTitle}"
-                        </div>
-                      ) : (
-                        <div style={{ height: '20px', marginBottom: '10px' }}></div>
-                      )}
+                      {/* Project Title - Always shown */}
+                      {(() => {
+                        const isLongTitle = currentWork.title && currentWork.title.length > 50
+                        
+                        return (
+                          <div 
+                            style={{
+                              color: '#cccccc',
+                              fontSize: '10px',
+                              fontFamily: 'monospace',
+                              textAlign: 'center',
+                              marginBottom: '10px',
+                              fontStyle: 'italic',
+                              minHeight: '20px',
+                              maxHeight: isTitleExpanded ? '60px' : '20px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: '0 12px',
+                              overflow: 'hidden',
+                              position: 'relative',
+                              transition: 'max-height 0.3s ease'
+                            }}
+                          >
+                            <div style={{
+                              whiteSpace: isTitleExpanded ? 'normal' : 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: isTitleExpanded ? 'clip' : 'ellipsis',
+                              lineHeight: '1.4',
+                              wordBreak: 'break-word',
+                              textAlign: 'center',
+                              paddingRight: isLongTitle ? '20px' : '0'
+                            }}>
+                              {currentWork.title ? `"${currentWork.title}"` : '\u00A0'}
+                            </div>
+                            {isLongTitle && (
+                              <button
+                                onTouchEnd={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  setIsTitleExpanded(!isTitleExpanded)
+                                }}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: '#e9359e',
+                                  fontSize: '8px',
+                                  cursor: 'pointer',
+                                  padding: '2px 4px',
+                                  opacity: 0.7,
+                                  outline: 'none',
+                                  position: 'absolute',
+                                  right: '4px'
+                                }}
+                              >
+                                {isTitleExpanded ? '▲' : '▼'}
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })()}
 
                       {/* Bio */}
                       <div style={{
@@ -699,7 +1272,7 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Swipe Indicators */}
+                    {/* Swipe Indicators - MODIFIED: Using handleProfileSelect */}
                     <div style={{
                       display: 'flex',
                       justifyContent: 'space-between',
@@ -714,33 +1287,7 @@ export default function App() {
                         onClick={(e) => {
                           e.stopPropagation()
                           const prevIndex = (currentProfileIndex - 1 + asteroidData.length) % asteroidData.length
-                          const targetRotation = prevIndex * ((Math.PI * 2) / asteroidData.length)
-                          
-                          // Animate rotation
-                          const startRotation = orbitalRotation
-                          const duration = 400
-                          const startTime = Date.now()
-                          
-                          const animate = () => {
-                            const elapsed = Date.now() - startTime
-                            const progress = Math.min(elapsed / duration, 1)
-                            const easeProgress = 1 - Math.pow(1 - progress, 3)
-                            const currentRot = startRotation + (targetRotation - startRotation) * easeProgress
-                            
-                            if (window.__orbitalGroupRef) {
-                              window.__orbitalGroupRef.rotation.y = currentRot
-                              setOrbitalRotation(currentRot)
-                            }
-                            
-                            if (progress < 1) {
-                              requestAnimationFrame(animate)
-                            } else {
-                              lastRotationRef.current = targetRotation
-                              setCurrentProfileIndex(prevIndex)
-                            }
-                          }
-                          
-                          animate()
+                          handleProfileSelect(prevIndex)
                         }}
                         style={{
                           background: 'none',
@@ -774,33 +1321,7 @@ export default function App() {
                         onClick={(e) => {
                           e.stopPropagation()
                           const nextIndex = (currentProfileIndex + 1) % asteroidData.length
-                          const targetRotation = nextIndex * ((Math.PI * 2) / asteroidData.length)
-                          
-                          // Animate rotation
-                          const startRotation = orbitalRotation
-                          const duration = 400
-                          const startTime = Date.now()
-                          
-                          const animate = () => {
-                            const elapsed = Date.now() - startTime
-                            const progress = Math.min(elapsed / duration, 1)
-                            const easeProgress = 1 - Math.pow(1 - progress, 3)
-                            const currentRot = startRotation + (targetRotation - startRotation) * easeProgress
-                            
-                            if (window.__orbitalGroupRef) {
-                              window.__orbitalGroupRef.rotation.y = currentRot
-                              setOrbitalRotation(currentRot)
-                            }
-                            
-                            if (progress < 1) {
-                              requestAnimationFrame(animate)
-                            } else {
-                              lastRotationRef.current = targetRotation
-                              setCurrentProfileIndex(nextIndex)
-                            }
-                          }
-                          
-                          animate()
+                          handleProfileSelect(nextIndex)
                         }}
                         style={{
                           background: 'none',
@@ -834,13 +1355,20 @@ export default function App() {
                         from { opacity: 0; transform: scale(0.95); }
                         to { opacity: 1; transform: scale(1); }
                       }
+                      @keyframes fadeOut {
+                        from { opacity: 1; transform: scale(1); }
+                        to { opacity: 0; transform: scale(0.95); }
+                      }
                     `}</style>
                   </div>
                 </Html>
               )}
             </MobileOrbitalRotator>
           ) : (
-            <OrbitalSystem searchTerm={searchTerm} />
+            <OrbitalSystem 
+              searchTerm={searchTerm}
+              isMobile={isMobile}
+            />
           )}
          
           {/* OrbitControls - Disabled on mobile */}
