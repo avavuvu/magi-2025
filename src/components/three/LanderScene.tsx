@@ -5,21 +5,21 @@ import CentralSphere from "@/three/CentralSphere"
 
 import animationModel from "@assets/models/animation.glb?url"
 import researchModel from "@assets/models/research.glb?url"
-import gamesModel from "@assets/models/games.glb?url"
+import gamesModel from "@assets/models/games2.glb?url"
 import interactiveModel from "@assets/models/interactive.glb?url"
 import AsteroidField from "./AsteroidField";
 
-import type { ProjectData } from "src/lib/types";
+import type { ProjectData, StudentData } from "src/lib/types";
 
 useGLTF.preload(animationModel)
 useGLTF.preload(researchModel)
 useGLTF.preload(interactiveModel)
 useGLTF.preload(gamesModel)
 
-const LanderScene = ({projects, isMobile}: {projects: ProjectData[], isMobile: boolean}) => {
+const LanderScene = ({students, isMobile}: {students: StudentData[], isMobile: boolean}) => {
     return (
         <>
-            <AsteroidField projects={projects} isMobile={isMobile} />
+            <AsteroidField students={students} isMobile={isMobile} />
 
             <CentralSphere  />
 

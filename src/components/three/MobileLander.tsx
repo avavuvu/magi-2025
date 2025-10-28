@@ -2,19 +2,19 @@ import { OrbitControls, type OrbitControlsProps } from "@react-three/drei";
 import { Canvas, type CameraProps, type GLProps } from "@react-three/fiber";
 import { Group, Mesh, NoToneMapping } from "three";
 import LanderScene from "@/three/LanderScene";
-import type { ProjectData } from "src/lib/types";
+import type { StudentData } from "src/lib/types";
 import MobileProfiles from "@/MobileProfiles";
 import { useScrollAnimation } from "src/lib/useScrollAnimation";
 import { useEffect, useRef, useState } from "react";
 import { cameraSettings, glSettings } from "src/lib/canvasSettings";
 
 
-const Lander = ({ projects }: { projects: ProjectData[] }) => {
+const Lander = ({ students }: { students: StudentData[] }) => {
 
     const orbitRotator = useRef<Group>(null!);
     const target = useRef<HTMLDivElement>(null!);
 
-    const [ currentProject, setCurrentProject ] = useState<ProjectData | null>(null)
+    const [ currentProject, setCurrentProject ] = useState<StudentData | null>(null)
     const scroll = useScrollAnimation(target);
 
     useEffect(() => {
@@ -26,7 +26,7 @@ const Lander = ({ projects }: { projects: ProjectData[] }) => {
     }, [scroll])
 
     useEffect(() => {
-        setCurrentProject(projects[Math.floor(scroll * projects.length)])
+        setCurrentProject(students[Math.floor(scroll * students.length)])
     }, [currentProject, scroll])
 
     return (
@@ -54,12 +54,12 @@ const Lander = ({ projects }: { projects: ProjectData[] }) => {
                     />
 
                     <group ref={orbitRotator}>
-                        <LanderScene isMobile={true} projects={projects} />
+                        <LanderScene isMobile={true} students={students} />
                     </group>
 
                 </Canvas>
             </div>
-            <MobileProfiles ref={target} projects={projects} scroll={scroll} />
+            <MobileProfiles ref={target} students={students} scroll={scroll} />
         </main>
     );
 };

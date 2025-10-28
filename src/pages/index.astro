@@ -5,11 +5,11 @@ import Layout from "../layouts/Layout.astro";
 import convertToUrl from "src/lib/convertUrl";
 import Lander from "@/Lander";
 
-const projects = await getCollection("projects");
+const students = await getCollection("students");
 
-const projectArray = projects.map(({ rendered, data }) => ({
+const studentArray = students.map(({ rendered, data }) => ({
     ...data,
-    id: convertToUrl(data.title),
+    id: `@${convertToUrl(data.name)}`,
     description: rendered!.html,
 }));
 ---
@@ -54,7 +54,7 @@ const projectArray = projects.map(({ rendered, data }) => ({
             </div>
         </div>
         <div class="row-start-1 row-end-2 col-start-1 col-end-2">
-            <Lander projects={projectArray} client:only="react" />
+            <Lander students={studentArray} client:only="react" />
         </div>
     </div>
 </Layout>

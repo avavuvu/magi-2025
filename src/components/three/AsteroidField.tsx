@@ -3,10 +3,10 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { InstancedMesh, Matrix4, PointsMaterial, Quaternion, Vector3, type Mesh } from "three";
 import DesktopAsteroidInteractive from "./DesktopAsteroidInteractive";
-import type { ProjectData } from "src/lib/types";
+import type { StudentData } from "src/lib/types";
 
-const AsteroidField = ({projects, isMobile}: {projects: ProjectData[], isMobile: boolean}) => {
-    const asteroidCount = projects.length;
+const AsteroidField = ({students, isMobile}: {students: StudentData[], isMobile: boolean}) => {
+    const asteroidCount = students.length;
 
     const [ activeIndex, setActiveIndex ] = useState(0);
     const [ point, setPoint ] = useState<[number, number, number]>([-1,-1,-1]);
@@ -63,7 +63,7 @@ const AsteroidField = ({projects, isMobile}: {projects: ProjectData[], isMobile:
                 <pointsMaterial size={0.1} color={0xffffff} />
 
                 {!isMobile && (
-                    <DesktopAsteroidInteractive projects={projects} activeIndex={activeIndex} point={point}/>
+                    <DesktopAsteroidInteractive projects={students} activeIndex={activeIndex} point={point}/>
                 )}
             </Points>
 
@@ -90,7 +90,7 @@ const AsteroidField = ({projects, isMobile}: {projects: ProjectData[], isMobile:
 
                     onPointerUp={(event) => {
                         event.stopPropagation()
-                        window.location.href = `/projects/${projects[activeIndex].id}`
+                        window.location.href = `/${students[activeIndex].id}`
                     }}
                 >
                     <sphereGeometry args={[1, 8, 6]} />

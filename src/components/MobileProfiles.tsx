@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
-import type { ProjectData } from "src/lib/types";
+import type { ProjectData, StudentData } from "src/lib/types";
 import { useScrollAnimation } from "src/lib/useScrollAnimation";
 
 
-const MobileProfiles = ({ projects, scroll, ref }: { projects: ProjectData[], scroll: number, ref: RefObject<HTMLDivElement>}) => {
+const MobileProfiles = ({ students, scroll, ref }: { students: StudentData[], scroll: number, ref: RefObject<HTMLDivElement>}) => {
     const posterListRef = useRef<HTMLUListElement>(null!);
 
-    const translateX = -scroll * (projects.length - 1) * 100;
+    const translateX = -scroll * (students.length - 1) * 100;
     if(posterListRef.current) {
         posterListRef.current.style.transform = `translateX(${translateX}vw)`;
     }
@@ -14,11 +14,11 @@ const MobileProfiles = ({ projects, scroll, ref }: { projects: ProjectData[], sc
     return (
         <section
             ref={ref}
-            style={{ height: `${projects.length * 100}vh` }}
+            style={{ height: `${students.length * 100}vh` }}
             className="relative overflow-x-clip"
         >
             <ul ref={posterListRef} className="flex sticky top-0">
-                {projects.map(({ image }, index) => (
+                {students.map(({ image }, index) => (
                     <li
                         key={index}
                         className="h-screen w-screen flex-shrink-0 overflow-hidden flex items-center justify-center flex-col"
@@ -36,14 +36,14 @@ const MobileProfiles = ({ projects, scroll, ref }: { projects: ProjectData[], sc
             </ul>
 
             <div className="absolute inset-0">
-                {projects.map(({ title, image }, index) => (
+                {students.map(({ name, image }, index) => (
                     <div
                         key={index}
                         className="h-screen w-screen flex items-end gap-10"
                     >
                         <div className="w-full">
                             <span className="ml-2 text-5xl">#{index + 1}</span>
-                            <span>{title}</span>
+                            <span>{name}</span>
                         </div>
                     </div>
                 ))}

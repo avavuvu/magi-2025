@@ -2,10 +2,10 @@ import { OrbitControls, type OrbitControlsProps } from "@react-three/drei";
 import { Canvas, type CameraProps, type GLProps } from "@react-three/fiber";
 import { Group, Mesh, NoToneMapping } from "three";
 import LanderScene from "@/three/LanderScene";
-import type { ProjectData } from "src/lib/types";
+import type { ProjectData, StudentData } from "src/lib/types";
 import { cameraSettings, glSettings } from "src/lib/canvasSettings";
 
-const Lander = ({ projects }: { projects: ProjectData[] }) => {
+const Lander = ({ students }: { students: StudentData[] }) => {
     const orbitSettings: OrbitControlsProps = {
         enablePan: false,
         enableRotate: true,
@@ -36,7 +36,7 @@ const Lander = ({ projects }: { projects: ProjectData[] }) => {
 
                     <OrbitControls {...orbitSettings}/>
 
-                    <LanderScene isMobile={false} projects={projects} />
+                    <LanderScene isMobile={false} students={students} />
 
                 </Canvas>
     );

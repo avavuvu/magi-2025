@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react"
-import type { ProjectData } from "src/lib/types"
+import type { ProjectData, StudentData } from "src/lib/types"
 import MobileLander from "./three/MobileLander"
 import DesktopLander from "./three/DesktopLander"
 
-const Lander = ({projects}: {projects: ProjectData[]}) => {
+const Lander = ({students}: {students: StudentData[]}) => {
     const [isMobile, setIsMobile] = useState(false)
 
     useEffect(() => {
@@ -19,9 +19,9 @@ const Lander = ({projects}: {projects: ProjectData[]}) => {
     }, [])
 
     return isMobile ? (
-        <MobileLander projects={projects}/>
+        <MobileLander students={students}/>
     ) : (
-        <DesktopLander projects={projects}/>
+        <DesktopLander students={students}/>
     )   
 }
 

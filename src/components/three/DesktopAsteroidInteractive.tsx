@@ -1,7 +1,7 @@
 import { Html } from "@react-three/drei"
-import type { ProjectData } from "src/lib/types"
+import type { ProjectData, StudentData } from "src/lib/types"
 
-const DesktopAsteroidInteractive = ({ projects, activeIndex, point }: { projects: ProjectData[], activeIndex: number, point: [number, number, number]}) => {
+const DesktopAsteroidInteractive = ({ projects, activeIndex, point }: { projects: StudentData[], activeIndex: number, point: [number, number, number]}) => {
     const profile = projects[activeIndex]
     
     return (
@@ -15,7 +15,7 @@ const DesktopAsteroidInteractive = ({ projects, activeIndex, point }: { projects
             style={{ userSelect: 'none' }}
             >
             <a 
-                href={`/projects/${profile.id}`}
+                href={`/${profile.id}`}
                 style={{
                 background: 'rgba(0, 0, 0, 0.95)',
                 border: '1px solid rgba(255, 255, 255, 1)',
@@ -56,18 +56,18 @@ const DesktopAsteroidInteractive = ({ projects, activeIndex, point }: { projects
                     overflow: 'hidden',
                     textOverflow: 'ellipsis'
                 }}>
-                    {profile.title}
+                    {profile.name}
                 </div>
                 
-                <div style={{
+                {/* <div style={{
                     fontSize: '9px',
                     color: 'rgba(233, 53, 158, 1)',
                     marginBottom: '8px',
                     textTransform: 'uppercase',
                     letterSpacing: '0.5px'
                 }}>
-                    {profile.category}
-                </div>
+                    {profile.}
+                </div> */}
 
                 <div style={{
                     fontSize: '10px',
