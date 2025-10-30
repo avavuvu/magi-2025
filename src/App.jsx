@@ -6,24 +6,428 @@ import { useAsteroidData } from './ProfileSystem'
 import * as THREE from 'three'
 import './responsive.css'
 
-// Mobile Orbital Rotator - rotates the scene based on touch
+// Category Side Window Component - NEW DESKTOP FEATURE
+function CategorySideWindow({ category, asteroidData, onClose }) {
+  const [isVisible, setIsVisible] = useState(false)
+  const [expandedStudents, setExpandedStudents] = useState(new Set())
+  const [selectedProfile, setSelectedProfile] = useState(null)
+  
+  useEffect(() => {
+    setTimeout(() => setIsVisible(true), 10)
+  }, [])
+
+  const handleClose = () => {
+    setIsVisible(false)
+    setTimeout(onClose, 300)
+  }
+
+  // Group students with multiple works in this category
+ const studentsData = useMemo(() => {
+    if (!category || !asteroidData) return []
+    
+    const studentMap = new Map()
+    
+    // Normalize work type helper
+    const normalizeWorkType = (type) => {
+      const lower = type.toLowerCase()
+      return lower === 'video essay' ? 'research' : lower
+    }
+    
+    asteroidData.forEach(profile => {
+      const normalizedWorkType = normalizeWorkType(profile?.workType || '')
+      const normalizedCategory = normalizeWorkType(category)
+      
+      if (normalizedWorkType === normalizedCategory) {
+        const name = profile.name
+        if (!studentMap.has(name)) {
+          studentMap.set(name, [])
+        }
+        studentMap.get(name).push({
+          title: profile.workTitle || 'Untitled',
+          type: profile.workType.toLowerCase() === 'video essay' ? 'Research' : profile.workType,
+          fullProfile: profile
+        })
+      }
+    })
+    
+    return Array.from(studentMap.entries()).map(([name, works]) => ({
+      name,
+      works,
+      hasMultiple: works.length > 1
+    }))
+  }, [category, asteroidData])
+
+  const toggleStudent = (studentName) => {
+    setExpandedStudents(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(studentName)) {
+        newSet.delete(studentName)
+      } else {
+        newSet.add(studentName)
+      }
+      return newSet
+    })
+  }
+
+  const handleStudentClick = (student) => {
+    setSelectedProfile(student.works[0].fullProfile)
+  }
+
+  return (
+    <>
+      <div style={{
+        position: 'fixed',
+        top: '100px',
+        right: '20px',
+        width: '280px',
+        maxHeight: '500px',
+        background: 'rgba(0, 0, 0, 0.85)',
+        border: '1px solid rgba(255, 255, 255, 1)',
+        zIndex: 10000,
+        transform: isVisible ? 'translateY(0)' : 'translateY(-20px)',
+        opacity: isVisible ? 1 : 0,
+        transition: 'all 0.3s ease',
+        display: 'flex',
+        flexDirection: 'column',
+        fontFamily: 'monospace'
+      }}>
+        <div style={{
+          padding: '12px 16px',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <div style={{
+            background: '#e9359e',
+            color: '#ffffff',
+            fontSize: '11px',
+            textTransform: 'uppercase',
+            letterSpacing: '1.5px',
+            fontWeight: 'bold',
+            padding: '8px 13px',
+            fontFamily: 'monospace'
+          }}>
+            {category}
+          </div>
+          <div style={{
+            color: 'rgba(255, 255, 255, 0.4)',
+            fontSize: '11px',
+            fontFamily: 'monospace',
+            marginLeft: '12px'
+          }}>
+            {studentsData.length}
+          </div>
+          <button
+            onClick={handleClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'rgba(255, 255, 255, 0.5)',
+              cursor: 'pointer',
+              fontSize: '18px',
+              padding: 0,
+              width: '20px',
+              height: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'color 0.2s',
+              marginLeft: 'auto'
+            }}
+            onMouseEnter={(e) => e.target.style.color = '#ffffff'}
+            onMouseLeave={(e) => e.target.style.color = 'rgba(255, 255, 255, 0.5)'}
+          >
+            ×
+          </button>
+        </div>
+
+        <div style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '12px'
+        }}>
+          {studentsData.length === 0 ? (
+            <div style={{
+              color: 'rgba(255, 255, 255, 0.3)',
+              fontSize: '10px',
+              textAlign: 'center',
+              marginTop: '40px'
+            }}>
+              No students found
+            </div>
+          ) : (
+            studentsData.map((student, index) => (
+              <div key={index} style={{ marginBottom: '8px' }}>
+                <div
+                  onClick={() => {
+                    if (student.hasMultiple) {
+                      toggleStudent(student.name)
+                    } else {
+                      handleStudentClick(student)
+                    }
+                  }}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    padding: '10px 12px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)'
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{
+                        color: '#ffffff',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        marginBottom: student.hasMultiple && !expandedStudents.has(student.name) ? '2px' : 0
+                      }}>
+                        {student.name}
+                      </div>
+                      {!student.hasMultiple && student.works[0] && (
+                        <div style={{
+                          color: 'rgba(255, 255, 255, 0.5)',
+                          fontSize: '10px',
+                          marginTop: '3px',
+                          lineHeight: '1.3'
+                        }}>
+                          {student.works[0].title}
+                        </div>
+                      )}
+                    </div>
+                    {student.hasMultiple && (
+                      <span style={{ 
+                        fontSize: '9px', 
+                        color: 'rgba(255, 255, 255, 0.4)',
+                        marginLeft: '12px',
+                        flexShrink: 0
+                      }}>
+                        {expandedStudents.has(student.name) ? '−' : `+${student.works.length}`}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                
+                {student.hasMultiple && expandedStudents.has(student.name) && (
+                  <div style={{
+                    padding: '8px 12px 8px 24px',
+                    background: 'rgba(0, 0, 0, 0.2)',
+                    borderLeft: '1px solid rgba(255, 255, 255, 0.1)',
+                    marginLeft: '12px',
+                    marginTop: '4px'
+                  }}>
+                    {student.works.map((work, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => setSelectedProfile(work.fullProfile)}
+                        style={{
+                          color: 'rgba(255, 255, 255, 0.6)',
+                          fontSize: '10px',
+                          marginBottom: idx < student.works.length - 1 ? '6px' : 0,
+                          lineHeight: '1.3',
+                          cursor: 'pointer',
+                          transition: 'color 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.target.style.color = 'rgba(255, 255, 255, 0.9)'}
+                        onMouseLeave={(e) => e.target.style.color = 'rgba(255, 255, 255, 0.6)'}
+                      >
+                        {work.title}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Profile Card */}
+      {selectedProfile && (
+        <div style={{
+          position: 'fixed',
+          top: '100px',
+          left: '80px',
+          width: '280px',
+          maxHeight: '350px',
+          background: 'rgba(0, 0, 0, 0.95)',
+          border: '1px solid rgba(255, 255, 255, 1)',
+          padding: '16px',
+          zIndex: 10001,
+          fontFamily: 'monospace',
+          animation: 'fadeIn 0.3s ease-out',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          <button
+            onClick={() => setSelectedProfile(null)}
+            style={{
+              position: 'absolute',
+              top: '8px',
+              right: '8px',
+              background: 'none',
+              border: 'none',
+              color: 'rgba(255, 255, 255, 0.5)',
+              cursor: 'pointer',
+              fontSize: '18px',
+              padding: 0,
+              width: '20px',
+              height: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'color 0.2s',
+              zIndex: 1
+            }}
+            onMouseEnter={(e) => e.target.style.color = '#ffffff'}
+            onMouseLeave={(e) => e.target.style.color = 'rgba(255, 255, 255, 0.5)'}
+          >
+            ×
+          </button>
+
+          <div style={{
+            display: 'flex',
+            gap: '12px',
+            marginBottom: '12px'
+          }}>
+            <div style={{
+              width: '60px',
+              height: '60px',
+              flexShrink: 0
+            }}>
+              <img 
+                src={selectedProfile.studentNumber 
+                  ? `/profiles/${selectedProfile.studentNumber}.webp`
+                  : '/profiles/placeholder.webp'
+                }
+                alt={selectedProfile.name}
+                loading="lazy"
+                onError={(e) => {
+                  e.target.src = '/profiles/placeholder.webp'
+                }}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  borderRadius: '4px',
+                  objectFit: 'cover',
+                  border: '1px solid rgba(233, 53, 158, 0.5)'
+                }}
+              />
+            </div>
+            
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontSize: '13px',
+                fontWeight: 'bold',
+                color: '#ffffff',
+                marginBottom: '4px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}>
+                {selectedProfile.name}
+              </div>
+              
+              <div style={{
+                fontSize: '10px',
+                color: 'rgba(233, 53, 158, 1)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px'
+              }}>
+                {selectedProfile.workType}
+              </div>
+            </div>
+          </div>
+
+          {selectedProfile.works && selectedProfile.works.length > 0 && (
+            <div style={{
+              borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+              paddingTop: '12px',
+              marginBottom: '12px'
+            }}>
+              <div style={{
+                fontSize: '10px',
+                color: 'rgba(255, 255, 255, 0.5)',
+                textTransform: 'uppercase',
+                letterSpacing: '1px',
+                marginBottom: '8px'
+              }}>
+                Works ({selectedProfile.works.length})
+              </div>
+              <div style={{
+                maxHeight: '120px',
+                overflowY: 'auto',
+                scrollbarWidth: 'thin',
+                scrollbarColor: 'rgba(233, 53, 158, 0.5) transparent'
+              }}>
+                {selectedProfile.works.map((work, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      fontSize: '11px',
+                      color: '#e9359e',
+                      marginBottom: idx < selectedProfile.works.length - 1 ? '6px' : 0,
+                      paddingLeft: '8px',
+                      borderLeft: '2px solid rgba(233, 53, 158, 0.3)',
+                      lineHeight: '1.3'
+                    }}
+                  >
+                    {work.title || 'Untitled'}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{
+            fontSize: '11px',
+            color: '#cccccc',
+            lineHeight: '1.4',
+            height: '80px',
+            overflowY: 'auto',
+            paddingRight: '4px',
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'rgba(233, 53, 158, 0.5) transparent'
+          }}>
+            {selectedProfile.bio || 'No bio available'}
+          </div>
+
+          <style>{`
+            @keyframes fadeIn {
+              from { opacity: 0; transform: translateX(-20px); }
+              to { opacity: 1; transform: translateX(0); }
+            }
+          `}</style>
+        </div>
+      )}
+    </>
+  )
+}
+
+// Mobile Orbital Rotator - ORIGINAL
 function MobileOrbitalRotator({ children, onRotationChange, enabled }) {
   const groupRef = useRef()
   
   useEffect(() => {
     if (enabled && onRotationChange && groupRef.current) {
-      // Send current rotation to parent
       onRotationChange(groupRef.current.rotation.y)
     }
   }, [enabled, onRotationChange])
 
-  // Expose the group ref for external rotation control
   useEffect(() => {
     if (groupRef.current && window) {
       window.__orbitalGroupRef = groupRef.current
     }
     
-    // CRITICAL: Cleanup on unmount to prevent memory leak
     return () => {
       if (window.__orbitalGroupRef) {
         delete window.__orbitalGroupRef
@@ -34,13 +438,12 @@ function MobileOrbitalRotator({ children, onRotationChange, enabled }) {
   return <group ref={groupRef}>{children}</group>
 }
 
-// NEW: Mobile Search Component - Desktop styled
+// Mobile Search Component - ORIGINAL
 function MobileSearchBar({ asteroidData, onProfileSelect, currentProfileIndex, onSearchActiveChange }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [filteredProfiles, setFilteredProfiles] = useState([])
   const [showResults, setShowResults] = useState(false)
   
-  // Notify parent when search results are shown/hidden
   useEffect(() => {
     if (onSearchActiveChange) {
       onSearchActiveChange(showResults && (filteredProfiles.length > 0 || searchTerm.trim() !== ''))
@@ -63,7 +466,7 @@ function MobileSearchBar({ asteroidData, onProfileSelect, currentProfileIndex, o
         profile.bio?.toLowerCase().includes(term) ||
         profile.workTitle?.toLowerCase().includes(term)
       )
-      .slice(0, 5) // Limit to 5 results for mobile
+      .slice(0, 5)
     
     setFilteredProfiles(filtered)
     setShowResults(true)
@@ -77,11 +480,7 @@ function MobileSearchBar({ asteroidData, onProfileSelect, currentProfileIndex, o
   }
   
   return (
-    <div style={{
-      position: 'relative',
-      width: '100%'
-    }}>
-      {/* Search Input - Desktop Style */}
+    <div style={{ position: 'relative', width: '100%' }}>
       <input
         type="text"
         value={searchTerm}
@@ -95,11 +494,11 @@ function MobileSearchBar({ asteroidData, onProfileSelect, currentProfileIndex, o
           borderRadius: '4px',
           color: '#ffffff',
           fontFamily: 'monospace',
-          fontSize: '16px', // 16px prevents iOS zoom
+          fontSize: '16px',
           outline: 'none',
           backdropFilter: 'blur(10px)',
           WebkitBackdropFilter: 'blur(10px)',
-          touchAction: 'manipulation' // Prevent zoom gestures
+          touchAction: 'manipulation'
         }}
         onFocus={() => {
           if (searchTerm.trim() !== '') {
@@ -108,7 +507,6 @@ function MobileSearchBar({ asteroidData, onProfileSelect, currentProfileIndex, o
         }}
       />
       
-      {/* Search Results Dropdown */}
       {showResults && filteredProfiles.length > 0 && (
         <div style={{
           position: 'absolute',
@@ -139,7 +537,7 @@ function MobileSearchBar({ asteroidData, onProfileSelect, currentProfileIndex, o
                 borderBottom: idx < filteredProfiles.length - 1 ? '1px solid rgba(255, 255, 255, 0.1)' : 'none',
                 color: '#ffffff',
                 fontFamily: 'monospace',
-                fontSize: '13px', // Increased from 11px
+                fontSize: '13px',
                 cursor: 'pointer',
                 textAlign: 'left',
                 transition: 'background 0.2s'
@@ -159,22 +557,19 @@ function MobileSearchBar({ asteroidData, onProfileSelect, currentProfileIndex, o
                 fontWeight: 'bold', 
                 color: '#e9359e',
                 marginBottom: '4px',
-                fontSize: '13px' // Added explicit size for name
+                fontSize: '13px'
               }}>
                 {profile.name}
               </div>
               {profile.major && (
-                <div style={{ 
-                  color: '#aaaaaa',
-                  fontSize: '11px' // Increased from 10px
-                }}>
+                <div style={{ color: '#aaaaaa', fontSize: '11px' }}>
                   {profile.major}
                 </div>
               )}
               {profile.workTitle && (
                 <div style={{ 
                   color: '#cccccc',
-                  fontSize: '10px', // Increased from 9px
+                  fontSize: '10px',
                   fontStyle: 'italic',
                   marginTop: '2px'
                 }}>
@@ -186,7 +581,6 @@ function MobileSearchBar({ asteroidData, onProfileSelect, currentProfileIndex, o
         </div>
       )}
       
-      {/* No Results Message */}
       {showResults && searchTerm.trim() !== '' && filteredProfiles.length === 0 && (
         <div style={{
           position: 'absolute',
@@ -203,7 +597,7 @@ function MobileSearchBar({ asteroidData, onProfileSelect, currentProfileIndex, o
           textAlign: 'center',
           color: '#aaaaaa',
           fontFamily: 'monospace',
-          fontSize: '13px' // Increased from 11px
+          fontSize: '13px'
         }}>
           No students found matching "{searchTerm}"
         </div>
@@ -212,7 +606,7 @@ function MobileSearchBar({ asteroidData, onProfileSelect, currentProfileIndex, o
   )
 }
 
-// Archive Dropdown Component
+// Archive Dropdown Component - NEW DESKTOP FEATURE
 function ArchiveDropdown() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
@@ -291,30 +685,28 @@ function ArchiveDropdown() {
 
 export default function App() {
   const [searchTerm, setSearchTerm] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState(null)
   const [isMobile, setIsMobile] = useState(false)
   const [currentProfileIndex, setCurrentProfileIndex] = useState(-1)
-  const [displayProfileIndex, setDisplayProfileIndex] = useState(-1) // NEW: Debounced display index
-  const [searchActive, setSearchActive] = useState(false) // Track if search results are shown
+  const [displayProfileIndex, setDisplayProfileIndex] = useState(-1)
+  const [searchActive, setSearchActive] = useState(false)
   const [touchStartX, setTouchStartX] = useState(0)
   const [touchStartTime, setTouchStartTime] = useState(0)
   const [lastTouchX, setLastTouchX] = useState(0)
   const [velocity, setVelocity] = useState(0)
   const [hasSwipedOnce, setHasSwipedOnce] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
   const [isClosing, setIsClosing] = useState(false)
   const [selectedWorkIndex, setSelectedWorkIndex] = useState(0)
   const [isTitleExpanded, setIsTitleExpanded] = useState(false)
   const [workSwipeStartX, setWorkSwipeStartX] = useState(0)
-  const [isDragging, setIsDragging] = useState(false)
-  const [orbitalRotation, setOrbitalRotation] = useState(0)
   const lastRotationRef = useRef(0)
-  const animationFrameRef = useRef(null) // NEW: Track animation frame
-  const lastUpdateTimeRef = useRef(0) // NEW: Track last update time for throttling
-  const profileUpdateTimeoutRef = useRef(null) // NEW: For debouncing profile display updates
+  const animationFrameRef = useRef(null)
+  const lastUpdateTimeRef = useRef(0)
   
   const canvasRef = useRef()
   
-  // Get asteroid data for mobile profiles
-  const { asteroidData: rawAsteroidData, isLoading } = useAsteroidData()
+  const { asteroidData: rawAsteroidData } = useAsteroidData()
   
   const asteroidData = useMemo(() => {
     return rawAsteroidData.filter(profile => 
@@ -326,133 +718,59 @@ export default function App() {
     )
   }, [rawAsteroidData])
   
-  // Reset work selection when displayed profile changes
   useEffect(() => {
     setSelectedWorkIndex(0)
     setIsTitleExpanded(false)
+    setWorkSwipeStartX(0)
   }, [displayProfileIndex])
   
   const handleSearchChange = useCallback((value) => {
     setSearchTerm(value)
   }, [])
 
-  // NEW: Handle closing with animation
+  const handleCategoryClick = useCallback((category) => {
+    if (window.innerWidth > 768) {
+      setSelectedCategory(category)
+    }
+  }, [])
+
+  const handleCloseWindow = useCallback(() => {
+    setSelectedCategory(null)
+  }, [])
+
   const handleClose = useCallback(() => {
     setIsClosing(true)
-    setSelectedWorkIndex(0) // Reset work selection
+    setSelectedWorkIndex(0)
     setTimeout(() => {
       setHasSwipedOnce(false)
       setCurrentProfileIndex(-1)
-      setDisplayProfileIndex(-1) // Reset display index
-      setOrbitalRotation(0)
-      lastRotationRef.current = 0
-      if (window.__orbitalGroupRef) {
-        window.__orbitalGroupRef.rotation.y = 0
-      }
+      setDisplayProfileIndex(-1)
       setIsClosing(false)
-    }, 300) // Match fadeOut animation duration
+    }, 300)
   }, [])
 
-  // NEW: Jump to specific profile from search
-  const handleProfileSelect = useCallback((targetIndex) => {
-    if (!isMobile || asteroidData.length === 0) return
-    
-    // Cancel any ongoing animation
+  const handleProfileSelect = useCallback((index) => {
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current)
       animationFrameRef.current = null
     }
     
-    const segmentSize = (Math.PI * 2) / asteroidData.length
-    const targetRotation = targetIndex * segmentSize
-    const startRotation = orbitalRotation
-    const duration = 600
-    const startTime = Date.now()
+    setCurrentProfileIndex(index)
+    setDisplayProfileIndex(index)
+    setHasSwipedOnce(true)
+    setVelocity(0)
+    setIsDragging(false)
     
-    // Enable profile view if not already
-    if (!hasSwipedOnce) {
-      setHasSwipedOnce(true)
+    const asteroid = asteroidData[index]
+    if (asteroid && window.__orbitalGroupRef) {
+      const angle = Math.atan2(asteroid.position[2], asteroid.position[0])
+      const targetRotation = -angle + Math.PI / 2
+      window.__orbitalGroupRef.rotation.y = targetRotation
+      lastRotationRef.current = targetRotation
     }
-    
-    const animate = () => {
-      const elapsed = Date.now() - startTime
-      const progress = Math.min(elapsed / duration, 1)
-      const easeProgress = 1 - Math.pow(1 - progress, 3)
-      
-      // Calculate shortest rotation path
-      let delta = targetRotation - startRotation
-      const twoPi = Math.PI * 2
-      
-      // Normalize delta to be between -PI and PI
-      while (delta > Math.PI) delta -= twoPi
-      while (delta < -Math.PI) delta += twoPi
-      
-      const currentRot = startRotation + delta * easeProgress
-      
-      if (window.__orbitalGroupRef) {
-        window.__orbitalGroupRef.rotation.y = currentRot
-        setOrbitalRotation(currentRot)
-      }
-      
-      if (progress < 1) {
-        animationFrameRef.current = requestAnimationFrame(animate)
-      } else {
-        lastRotationRef.current = targetRotation
-        setCurrentProfileIndex(targetIndex)
-        setDisplayProfileIndex(targetIndex) // Update display immediately
-        animationFrameRef.current = null
-      }
-    }
-    
-    animate()
-  }, [isMobile, asteroidData.length, orbitalRotation, hasSwipedOnce])
+  }, [asteroidData])
 
-  // Detect mobile on mount and resize
-  useEffect(() => {
-    const checkMobile = () => {
-      const mobile = window.innerWidth <= 768
-      setIsMobile(mobile)
-      if (!mobile) {
-        setCurrentProfileIndex(-1)
-        setHasSwipedOnce(false)
-        setOrbitalRotation(0)
-        lastRotationRef.current = 0
-        // NEW: Cancel animation on desktop switch
-        if (animationFrameRef.current) {
-          cancelAnimationFrame(animationFrameRef.current)
-          animationFrameRef.current = null
-        }
-      }
-    }
-    
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    
-    // Cleanup animation on unmount and add visibility change handler to pause when hidden
-    const handleVisibilityChange = () => {
-      if (document.hidden && animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current)
-        animationFrameRef.current = null
-      }
-    }
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    
-return () => {
-      window.removeEventListener('resize', checkMobile)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current)
-        animationFrameRef.current = null
-      }
-      // CRITICAL: Clean up window reference to prevent memory leak
-      if (window.__orbitalGroupRef) {
-        delete window.__orbitalGroupRef
-      }
-    }
-  }, [])
-
-  // Mobile touch handlers for orbital rotation
+  // ORIGINAL MOBILE TOUCH HANDLERS
   const handleTouchStart = useCallback((e) => {
     if (!isMobile) return
     
@@ -482,7 +800,6 @@ return () => {
     
     const currentTime = Date.now()
     
-    // Throttle updates to every 32ms (~30fps) - more aggressive to prevent crashes
     if (currentTime - lastUpdateTimeRef.current < 32) {
       return
     }
@@ -490,29 +807,22 @@ return () => {
     
     const currentX = e.touches[0].clientX
     
-    // Calculate rotation based on drag distance - Heavy weight, requires 3-4 cycles for all entries
     const dragDelta = currentX - touchStartX
-    const rotationDelta = (dragDelta / window.innerWidth) * Math.PI * 0.25 // Reduced from 0.8 to 0.25 (70% reduction)
+    const rotationDelta = (dragDelta / window.innerWidth) * Math.PI * 0.25
     const newRotation = lastRotationRef.current + rotationDelta
     
-    // Calculate velocity for momentum (but don't update state every frame)
     const timeDelta = currentTime - touchStartTime
     const moveDelta = currentX - lastTouchX
     if (timeDelta > 0) {
-      // Much lower velocity cap for heavy, weighty feel (reduced from 25 to 12)
       const newVelocity = Math.min(Math.max((moveDelta / timeDelta) * 16, -12), 12)
       setVelocity(newVelocity)
     }
     
     setLastTouchX(currentX)
     
-    // Apply rotation ONLY to the visual - skip React state during drag
     if (window.__orbitalGroupRef) {
       window.__orbitalGroupRef.rotation.y = newRotation
-      // Don't update React state during drag - only update visual
     }
-    
-    // REMOVED: No live profile updates during drag - reduces state updates and flickering
   }, [isMobile, isDragging, touchStartX, touchStartTime, lastTouchX])
 
   const handleTouchEnd = useCallback(() => {
@@ -525,11 +835,6 @@ return () => {
       animationFrameRef.current = null
     }
     
-    if (profileUpdateTimeoutRef.current) {
-      clearTimeout(profileUpdateTimeoutRef.current)
-      profileUpdateTimeoutRef.current = null
-    }
-    
     const actualCurrentRotation = window.__orbitalGroupRef?.rotation.y || 0
     const segmentSize = (Math.PI * 2) / asteroidData.length
     
@@ -537,15 +842,14 @@ return () => {
     const immediateIndex = Math.round(normalizedRotation / segmentSize) % asteroidData.length
     setCurrentProfileIndex(immediateIndex)
     setDisplayProfileIndex(immediateIndex)
+    setHasSwipedOnce(true)
     
-    // ROULETTE-STYLE MOMENTUM SPIN with heavy, weighty feel
     const friction = 0.985
     const minVelocity = 0.008
     const maxVelocity = 0.05
     
-    // Very low velocity multiplier for heavy, deliberate movement
-    let currentVelocity = Math.min(Math.max(velocity * 0.003, -maxVelocity), maxVelocity) // Reduced from 0.006 to 0.003
-    let currentRotation = actualCurrentRotation // Use actual rotation, not stale state
+    let currentVelocity = Math.min(Math.max(velocity * 0.003, -maxVelocity), maxVelocity)
+    let currentRotation = actualCurrentRotation
     
     let frameCount = 0
     const maxFrames = 60
@@ -557,7 +861,6 @@ return () => {
       const frameDelta = currentFrameTime - lastFrameTime
       lastFrameTime = currentFrameTime
       
-      // Emergency stop if frames are too slow (more than 50ms = less than 20fps)
       if (frameDelta > 50) {
         consecutiveSlowFrames++
         if (consecutiveSlowFrames > 3) {
@@ -572,11 +875,10 @@ return () => {
         consecutiveSlowFrames = 0
       }
       
-      frameCount++ // Increment frame counter
+      frameCount++
       
-      // Safety check: stop after max frames
       if (frameCount > maxFrames) {
-        lastRotationRef.current = currentRotation // Keep actual rotation
+        lastRotationRef.current = currentRotation
         const finalIndex = Math.round(((currentRotation % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) / segmentSize) % asteroidData.length
         setCurrentProfileIndex(finalIndex)
         animationFrameRef.current = null
@@ -603,15 +905,10 @@ return () => {
         
         animationFrameRef.current = requestAnimationFrame(momentumSpin)
       } else {
-        // SNAP TO NEAREST PROFILE when momentum stops
         const normalizedRotation = ((currentRotation % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)
         const profileIndex = Math.round(normalizedRotation / segmentSize) % asteroidData.length
         
-        // Find the shortest path to snap (don't reset, just snap to nearest)
-        // Calculate target rotation that's closest to current rotation
         const rawTargetRotation = profileIndex * segmentSize
-        
-        // Find all possible rotations for this profile (current rotation could be multiple spins around)
         const rotationOffset = Math.floor(currentRotation / (Math.PI * 2)) * (Math.PI * 2)
         const possibleTargets = [
           rotationOffset + rawTargetRotation,
@@ -619,14 +916,12 @@ return () => {
           rotationOffset + rawTargetRotation + (Math.PI * 2)
         ]
         
-        // Choose the target rotation closest to current rotation
         const snappedRotation = possibleTargets.reduce((closest, target) => {
           return Math.abs(target - currentRotation) < Math.abs(closest - currentRotation) 
             ? target 
             : closest
         })
         
-        // Smooth snap animation
         const startRotation = currentRotation
         const targetRotation = snappedRotation
         const duration = 500
@@ -641,7 +936,6 @@ return () => {
           
           if (window.__orbitalGroupRef) {
             window.__orbitalGroupRef.rotation.y = snapRotation
-            setOrbitalRotation(snapRotation)
           }
           
           if (progress < 1) {
@@ -668,15 +962,13 @@ return () => {
     }
   }, [isMobile, isDragging, asteroidData.length, velocity, currentProfileIndex])
 
-  // Memoize camera settings - adjusted for mobile
   const cameraSettings = useMemo(() => ({
-    position: isMobile ? [8, 6, 8] : [8, 8, 8], // Lower Y position on mobile to show more of top
+    position: isMobile ? [8, 6, 8] : [8, 8, 8],
     fov: 35,
     near: 0.1,
     far: 1000
   }), [isMobile])
 
-  // Memoize GL settings
   const glSettings = useMemo(() => ({
     antialias: false,
     powerPreference: "high-performance",
@@ -688,12 +980,21 @@ return () => {
 
   const currentProfile = displayProfileIndex >= 0 ? asteroidData[displayProfileIndex] : null
   
-  // Get current work info for profiles with multiple works
   const hasMultipleWorks = currentProfile?.works && currentProfile.works.length > 1
   const currentWork = currentProfile?.works?.[selectedWorkIndex] || {
     title: currentProfile?.workTitle || 'Untitled Work',
     type: currentProfile?.workType || 'Creative Work'
   }
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768)
+    }
+    
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   return (
     <div style={{ 
@@ -701,8 +1002,17 @@ return () => {
       height: '100vh', 
       position: 'relative', 
       overflow: 'hidden',
-      touchAction: 'pan-x pan-y' // Allow panning but prevent pinch-zoom
+      touchAction: 'pan-x pan-y'
     }}>
+      {/* Category Side Window - Desktop Only */}
+      {!isMobile && selectedCategory && (
+        <CategorySideWindow 
+          category={selectedCategory}
+          asteroidData={asteroidData}
+          onClose={handleCloseWindow}
+        />
+      )}
+
       {/* Search Bar - Hide on mobile */}
       {!isMobile && (
         <div className="search-bar-container">
@@ -737,16 +1047,16 @@ return () => {
             />
           </div>
             
-          {/* NEW: Mobile Search Bar - Centered between logo and button */}
+          {/* Mobile Search Bar */}
           {isMobile && asteroidData.length > 0 && (
             <div style={{
               position: 'absolute',
               left: '46%',
-              transform: 'translateX(-50%) scale(0.75)', // Scale down visually
+              transform: 'translateX(-50%) scale(0.75)',
               transformOrigin: 'center',
-              width: 'calc((100% - 380px) / 0.75)', // Compensate for scale
-              maxWidth: '600px', // Adjusted for scale
-              minWidth: '226px', // Adjusted for scale
+              width: 'calc((100% - 380px) / 0.75)',
+              maxWidth: '600px',
+              minWidth: '226px',
               display: 'flex',
               justifyContent: 'center'
             }}>
@@ -851,7 +1161,7 @@ return () => {
         </div>
       </div>
 
-      {/* Profile Counter - Mobile only, shows when browsing */}
+      {/* Profile Counter - Mobile */}
       {isMobile && hasSwipedOnce && currentProfile && !searchActive && (
         <div style={{
           position: 'absolute',
@@ -873,24 +1183,7 @@ return () => {
         </div>
       )}
 
-      {/* Loading state for mobile */}
-      {isMobile && isLoading && (
-        <div style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          color: '#e9359e',
-          fontFamily: 'monospace',
-          fontSize: '14px',
-          textAlign: 'center',
-          zIndex: 1000
-        }}>
-          Loading profiles...
-        </div>
-      )}
-      
-      {/* Canvas with touch handlers on mobile */}
+      {/* Canvas */}
       <div
         ref={canvasRef}
         onTouchStart={handleTouchStart}
@@ -899,46 +1192,32 @@ return () => {
         style={{ 
           width: '100%', 
           height: '100%',
-          touchAction: isMobile ? 'none' : 'auto' // Disable all default touch on mobile
+          touchAction: isMobile ? 'none' : 'auto'
         }}
       >
         <Canvas 
           camera={cameraSettings}
           dpr={isMobile ? [0.75, 1] : [1, 1]}
-          performance={{ min: 0.3, max: 0.8, debounce: 200 }}
-          gl={{
-            ...glSettings,
-            toneMapping: THREE.NoToneMapping,
-            powerPreference: "high-performance",
-            antialias: false,
-            alpha: false,
-            stencil: false
-          }}
-          frameloop="always"
-          flat
-          linear
+          gl={glSettings}
+          frameloop="demand"
+          performance={{ min: 0.5 }}
         >
           <color attach="background" args={['#000000']} />
-          <fog attach="fog" args={['#000000', 8, 40]} />
-         
-          <ambientLight intensity={2.5} color="#e6f3ff" />
-          <directionalLight position={[10, 10, 5]} intensity={1} color="#ffffff" />
-          <pointLight position={[-10, -10, -10]} intensity={0.4} color="#ffd700" />
-          <pointLight position={[5, -5, 10]} intensity={0.25} color="#ff6b6b" />
-         
-          {/* Wrap orbital system in rotator on mobile */}
+          <fog attach="fog" args={['#000000', 10, 50]} />
+          
+          <ambientLight intensity={0.5} />
+          <directionalLight position={[10, 10, 5]} intensity={1} />
+
           {isMobile ? (
-            <MobileOrbitalRotator 
-              enabled={isMobile}
-              onRotationChange={setOrbitalRotation}
-            >
+            <MobileOrbitalRotator enabled={hasSwipedOnce}>
               <OrbitalSystem 
-                searchTerm={searchTerm} 
-                hideBanner={hasSwipedOnce && !searchActive}
+                searchTerm={searchTerm}
                 isMobile={isMobile}
+                hideBanner={hasSwipedOnce && !searchActive}
+                onCategoryClick={handleCategoryClick}
               />
               
-              {/* Mobile Profile Card - Inside Canvas */}
+              {/* Mobile Profile Card */}
               {hasSwipedOnce && currentProfile && !searchActive && (
                 <Html
                   center
@@ -961,11 +1240,13 @@ return () => {
                     <div 
                       onTouchStart={(e) => {
                         if (hasMultipleWorks) {
+                          e.stopPropagation()
                           setWorkSwipeStartX(e.touches[0].clientX)
                         }
                       }}
                       onTouchEnd={(e) => {
                         if (hasMultipleWorks && workSwipeStartX) {
+                          e.stopPropagation()
                           const swipeDelta = e.changedTouches[0].clientX - workSwipeStartX
                           if (Math.abs(swipeDelta) > 50) {
                             if (swipeDelta > 0) {
@@ -977,20 +1258,20 @@ return () => {
                                 (prev + 1) % currentProfile.works.length
                               )
                             }
+                            setIsTitleExpanded(false)
                           }
                           setWorkSwipeStartX(0)
                         }
                       }}
                       style={{
-                      background: 'rgba(0, 0, 0, 0.95)',
-                      border: '2px solid rgba(233, 53, 158, 1)',
-                      borderRadius: '0px',
-                      padding: '16px',
-                      backdropFilter: 'blur(20px)',
-                      pointerEvents: 'auto',
-                      position: 'relative'
-                    }}>
-                      {/* Close Button */}
+                        background: 'rgba(0, 0, 0, 0.95)',
+                        border: '2px solid rgba(233, 53, 158, 1)',
+                        borderRadius: '0px',
+                        padding: '16px',
+                        backdropFilter: 'blur(20px)',
+                        pointerEvents: 'auto',
+                        position: 'relative'
+                      }}>
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
@@ -1025,7 +1306,6 @@ return () => {
                         ×
                       </button>
 
-                      {/* Profile Picture */}
                       <div style={{
                         width: '80px',
                         height: '80px',
@@ -1054,7 +1334,6 @@ return () => {
                         />
                       </div>
 
-                      {/* Name - FIXED HEIGHT FOR 2 LINES */}
                       <h2 style={{
                         color: '#ffffff',
                         fontSize: '13.5px',
@@ -1072,17 +1351,15 @@ return () => {
                         {currentProfile.name}
                       </h2>
 
-                      {/* Work Type Badge with Inline Work Navigation */}
                       <div style={{
                         textAlign: 'center',
                         marginBottom: '12px',
-                        height: '22px', // Fixed height matching original badge height
+                        height: '22px',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         gap: '6px'
                       }}>
-                        {/* Previous work arrow */}
                         {hasMultipleWorks && (
                           <button
                             onClick={(e) => {
@@ -1102,14 +1379,14 @@ return () => {
                               background: 'none',
                               border: 'none',
                               color: '#e9359e',
-                              fontSize: '16px', // Increased from 12px for larger arrow
+                              fontSize: '16px',
                               cursor: 'pointer',
-                              padding: '8px', // Added padding for larger hit area
-                              margin: '-8px', // Negative margin to maintain visual position
+                              padding: '8px',
+                              margin: '-8px',
                               opacity: 0.6,
                               transition: 'opacity 0.2s',
                               outline: 'none',
-                              minWidth: '32px', // Minimum touch target size
+                              minWidth: '32px',
                               minHeight: '32px',
                               display: 'flex',
                               alignItems: 'center',
@@ -1144,7 +1421,6 @@ return () => {
                           )}
                         </span>
                         
-                        {/* Next work arrow */}
                         {hasMultipleWorks && (
                           <button
                             onClick={(e) => {
@@ -1164,14 +1440,14 @@ return () => {
                               background: 'none',
                               border: 'none',
                               color: '#e9359e',
-                              fontSize: '16px', // Increased from 12px for larger arrow
+                              fontSize: '16px',
                               cursor: 'pointer',
-                              padding: '8px', // Added padding for larger hit area
-                              margin: '-8px', // Negative margin to maintain visual position
+                              padding: '8px',
+                              margin: '-8px',
                               opacity: 0.6,
                               transition: 'opacity 0.2s',
                               outline: 'none',
-                              minWidth: '32px', // Minimum touch target size
+                              minWidth: '32px',
                               minHeight: '32px',
                               display: 'flex',
                               alignItems: 'center',
@@ -1183,9 +1459,8 @@ return () => {
                         )}
                       </div>
 
-                      {/* Project Title - Always shown */}
                       {(() => {
-                        const isLongTitle = currentWork.title && currentWork.title.length > 50
+                        const isLongTitle = currentWork.title && currentWork.title.length > 35
                         
                         return (
                           <div 
@@ -1245,7 +1520,6 @@ return () => {
                         )
                       })()}
 
-                      {/* Bio */}
                       <div style={{
                         color: '#aaaaaa',
                         fontSize: '9px',
@@ -1272,7 +1546,6 @@ return () => {
                       </div>
                     </div>
 
-                    {/* Swipe Indicators - MODIFIED: Using handleProfileSelect */}
                     <div style={{
                       display: 'flex',
                       justifyContent: 'space-between',
@@ -1368,10 +1641,10 @@ return () => {
             <OrbitalSystem 
               searchTerm={searchTerm}
               isMobile={isMobile}
+              onCategoryClick={handleCategoryClick}
             />
           )}
          
-          {/* OrbitControls - Disabled on mobile */}
           {!isMobile && (
             <OrbitControls 
               enablePan={true} 

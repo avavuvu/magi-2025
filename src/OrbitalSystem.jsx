@@ -1,8 +1,14 @@
-import { useRef, useState, useEffect, useMemo, memo } from 'react'
+import { useRef, useState, useEffect, useMemo, memo, useCallback } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Line, Html, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { useAsteroidData } from './ProfileSystem'
+
+// Normalize work types for display and comparison
+const normalizeWorkType = (type) => {
+  const lower = type.toLowerCase()
+  return lower === 'video essay' ? 'research' : lower
+}
 
 // Preload models
 useGLTF.preload('/ResearchModel.glb')
@@ -25,7 +31,7 @@ function getSharedMaterial(type) {
         metalness: 0.2,
         roughness: 0.5,
         emissive: new THREE.Color(0xffffff),
-        emissiveIntensity: 1,
+        emissiveIntensity: 1.3,
         vertexColors: true,
         precision: 'mediump',
         fog: true
@@ -36,7 +42,7 @@ function getSharedMaterial(type) {
         metalness: 0.01,
         roughness: 2,
         emissive: new THREE.Color('#ffffff'),
-        emissiveIntensity: 0.6,
+        emissiveIntensity: 1,
         precision: 'mediump',
         fog: true
       })
@@ -98,14 +104,15 @@ const PerformanceRegressor = memo(() => {
 
 PerformanceRegressor.displayName = 'PerformanceRegressor'
 
-// GLB Model Component - MEMOIZED with invalidate support
+// GLB Model Component - MEMOIZED with invalidate support + CLICK HANDLER
 const GLBOrbitingSphere = memo(({ 
   modelPath, 
   radius, 
   speed, 
   initialAngle, 
   label, 
-  scale = 1 
+  scale = 1,
+  onCategoryClick 
 }) => {
   const { scene } = useGLTF(modelPath)
   const groupRef = useRef()
@@ -133,7 +140,6 @@ const GLBOrbitingSphere = memo(({
   }, [scene])
 
   useEffect(() => {
-    // Initial position setup
     if (groupRef.current) {
       const angle = initialAngle
       const newX = Math.cos(angle) * radius
@@ -162,7 +168,6 @@ const GLBOrbitingSphere = memo(({
     }
   }, [clonedScene, initialAngle, radius, invalidate])
   
-  // Animation loop - runs every frame for smooth orbiting
   useFrame((state) => {
     if (!groupRef.current) return
     
@@ -178,9 +183,19 @@ const GLBOrbitingSphere = memo(({
     invalidate()
   })
 
+  const handleClick = (e) => {
+    if (window.innerWidth > 768 && onCategoryClick) {
+      e.stopPropagation()
+      onCategoryClick(label)
+    }
+  }
+
   return (
-    <group ref={groupRef}>
-      <primitive object={clonedScene} scale={scale} />
+    <group ref={groupRef} onClick={handleClick}>
+      <primitive 
+        object={clonedScene} 
+        scale={scale}
+      />
       
       <Line
         points={[[0, 0, 0], [1.2, 0, 0]]}
@@ -213,7 +228,6 @@ const GLBOrbitingSphere = memo(({
 
 GLBOrbitingSphere.displayName = 'GLBOrbitingSphere'
 
-
 const CentralSphere = memo(({ hideBanner = false }) => {
   const meshRef = useRef()
   const invalidate = useThree((state) => state.invalidate)
@@ -231,7 +245,6 @@ const CentralSphere = memo(({ hideBanner = false }) => {
     <mesh ref={meshRef} material={getSharedMaterial('planet')}>
       <sphereGeometry args={[1, 32, 32]} />
       
-      {/* Only show MAGI_Banner when hideBanner is false */}
       {!hideBanner && (
         <Html distanceFactor={8} position={[0, 0, 0]} center>
           <div style={{
@@ -274,21 +287,17 @@ const CentralSphere = memo(({ hideBanner = false }) => {
 
 CentralSphere.displayName = 'CentralSphere'
 
-// ASTEROID FIELD - MAXIMUM OPTIMIZATION
+// ASTEROID FIELD with video essay matching
 const AsteroidField = memo(({ asteroidData = [], searchTerm = '' }) => {
   const meshRef = useRef()
   const [hoveredIndex, setHoveredIndex] = useState(null)
   const hoveredAsteroid = hoveredIndex !== null ? asteroidData[hoveredIndex] : null
   const invalidate = useThree((state) => state.invalidate)
   
-  // Shared geometry
   const sharedGeometry = useMemo(() => new THREE.SphereGeometry(1, 4, 3), [])
-  
-  // CRITICAL: Reuse objects outside the render loop to avoid GC pressure
   const tempObject = useMemo(() => new THREE.Object3D(), [])
   const tempColor = useMemo(() => new THREE.Color(), [])
   
-  // Initialize instance matrices once
   useEffect(() => {
     if (!meshRef.current || asteroidData.length === 0) return
     
@@ -300,7 +309,6 @@ const AsteroidField = memo(({ asteroidData = [], searchTerm = '' }) => {
       tempObject.scale.set(scale, scale, scale)
       tempObject.updateMatrix()
       meshRef.current.setMatrixAt(i, tempObject.matrix)
-      
       meshRef.current.setColorAt(i, color)
     })
     
@@ -317,7 +325,6 @@ const AsteroidField = memo(({ asteroidData = [], searchTerm = '' }) => {
     
   }, [asteroidData, tempObject, invalidate])
 
-  // Search matches - memoized
   const searchMatches = useMemo(() => {
     if (!searchTerm.trim()) return new Set()
     const term = searchTerm.toLowerCase()
@@ -334,14 +341,17 @@ const AsteroidField = memo(({ asteroidData = [], searchTerm = '' }) => {
 
   const hasActiveSearch = searchTerm.trim().length > 0
 
-  // Update colors only when hover or search changes
   useEffect(() => {
     if (!meshRef.current) return
     
     for (let i = 0; i < asteroidData.length; i++) {
       const asteroid = asteroidData[i]
       const isHovered = hoveredIndex === i
-      const isConnected = hoveredAsteroid && hoveredAsteroid.workType === asteroid.workType && hoveredIndex !== i
+      
+      const isConnected = hoveredAsteroid && 
+        normalizeWorkType(hoveredAsteroid.workType) === normalizeWorkType(asteroid.workType) && 
+        hoveredIndex !== i
+      
       const isMatch = searchMatches.has(i)
       
       let intensity
@@ -363,11 +373,8 @@ const AsteroidField = memo(({ asteroidData = [], searchTerm = '' }) => {
     invalidate()
   }, [hoveredIndex, hoveredAsteroid, searchMatches, hasActiveSearch, asteroidData, tempColor, invalidate])
 
-  // ✅ HIGH PRIORITY FIX #3: Throttle to every 3rd frame
   useFrame((state) => {
     if (!meshRef.current) return
-    
-    // Only update every 3rd frame for better performance
     if (state.frame % 3 !== 0) return
     
     const time = state.clock.elapsedTime
@@ -395,7 +402,6 @@ const AsteroidField = memo(({ asteroidData = [], searchTerm = '' }) => {
     invalidate()
   })
 
-  // Cleanup
   useEffect(() => {
     return () => {
       if (sharedGeometry) sharedGeometry.dispose()
@@ -420,22 +426,13 @@ const AsteroidField = memo(({ asteroidData = [], searchTerm = '' }) => {
             invalidate()
           }
         }}
-        onPointerOut={(e) => {
-          e.stopPropagation()
+        onPointerOut={() => {
           setHoveredIndex(null)
           document.body.style.cursor = 'default'
           invalidate()
         }}
-        onClick={(e) => {
-          e.stopPropagation()
-          const id = e.instanceId
-          if (id !== undefined && id >= 0 && id < asteroidData.length) {
-            console.log('Clicked asteroid:', asteroidData[id])
-            invalidate()
-          }
-        }}
       />
-
+      
       {hoveredAsteroid && (
         <Html
           position={[
@@ -510,7 +507,7 @@ const AsteroidField = memo(({ asteroidData = [], searchTerm = '' }) => {
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px'
               }}>
-                {hoveredAsteroid.workType}
+                {hoveredAsteroid.workType.toLowerCase() === 'video essay' ? 'Research' : hoveredAsteroid.workType}
               </div>
 
               <div style={{
@@ -530,12 +527,11 @@ const AsteroidField = memo(({ asteroidData = [], searchTerm = '' }) => {
         </Html>
       )}
       
-      {hasActiveSearch && asteroidData.map((asteroid, i) => {
-        if (!searchMatches.has(i)) return null
-        
+      {searchMatches.size > 0 && Array.from(searchMatches).map((index) => {
+        const asteroid = asteroidData[index]
         return (
           <Html
-            key={`search-${asteroid.id}`}
+            key={`search-${index}`}
             position={asteroid.position}
             style={{
               pointerEvents: 'none',
@@ -622,10 +618,14 @@ const AsteroidField = memo(({ asteroidData = [], searchTerm = '' }) => {
 
 AsteroidField.displayName = 'AsteroidField'
 
-// Then update OrbitalSystem to accept and pass the hideBanner prop:
-
-export function OrbitalSystem({ searchTerm = '', hideBanner = false }) {
+export function OrbitalSystem({ searchTerm = '', hideBanner = false, onCategoryClick }) {
   const { asteroidData, isLoading, error } = useAsteroidData()
+
+  const handleCategoryClick = useCallback((category) => {
+    if (window.innerWidth > 768 && onCategoryClick) {
+      onCategoryClick(category)
+    }
+  }, [onCategoryClick])
 
   if (isLoading) {
     return (
@@ -684,10 +684,7 @@ export function OrbitalSystem({ searchTerm = '', hideBanner = false }) {
   return (
     <>
       <PerformanceRegressor />
-      
-      {/* Pass hideBanner prop to CentralSphere */}
       <CentralSphere hideBanner={hideBanner} />
-      
       <AsteroidField 
         asteroidData={asteroidData} 
         searchTerm={searchTerm}
@@ -701,6 +698,7 @@ export function OrbitalSystem({ searchTerm = '', hideBanner = false }) {
         initialAngle={0}
         label="Research"
         scale={0.3}
+        onCategoryClick={handleCategoryClick}
       />
       
       <OrbitRing radius={3.05} orbitColor="#ffffff" opacity={0.75} />
@@ -711,6 +709,7 @@ export function OrbitalSystem({ searchTerm = '', hideBanner = false }) {
         initialAngle={Math.PI * 0.7}
         label="Animation"
         scale={0.3}
+        onCategoryClick={handleCategoryClick}
       />
       
       <OrbitRing radius={4.1} orbitColor="#ffffff" opacity={0.5} />
@@ -721,6 +720,7 @@ export function OrbitalSystem({ searchTerm = '', hideBanner = false }) {
         initialAngle={Math.PI * 1.3}
         label="Games"
         scale={0.3}
+        onCategoryClick={handleCategoryClick}
       />
       
       <OrbitRing radius={5.15} orbitColor="#ffffff" opacity={0.25} />
@@ -729,14 +729,14 @@ export function OrbitalSystem({ searchTerm = '', hideBanner = false }) {
         radius={5.15}
         speed={0.015}
         initialAngle={Math.PI * 1.8}
-        label="Interaction"
+        label="Interactivity"
         scale={0.3}
+        onCategoryClick={handleCategoryClick}
       />
     </>
   )
 }
 
-// Orbit Ring - MEMOIZED
 const OrbitRing = memo(({ radius, orbitColor, opacity = 1.0 }) => {
   const points = useMemo(() => {
     const pts = []
@@ -771,7 +771,6 @@ const OrbitRing = memo(({ radius, orbitColor, opacity = 1.0 }) => {
 
 OrbitRing.displayName = 'OrbitRing'
 
-// Search Bar - MEMOIZED
 export const SearchBar = memo(({ searchTerm, onSearchChange }) => {
   return (
     <div style={{
@@ -781,8 +780,8 @@ export const SearchBar = memo(({ searchTerm, onSearchChange }) => {
       transform: 'translateX(-50%)',
       zIndex: 9999,
       pointerEvents: 'auto',
-      width: 'calc(100% - 40px)', // Only change: responsive width
-      maxWidth: '500px' // Only change: limit on desktop
+      width: 'calc(100% - 40px)',
+      maxWidth: '500px'
     }}>
       <div style={{
         background: 'rgba(0, 0, 0, 0.8)',
@@ -805,8 +804,8 @@ export const SearchBar = memo(({ searchTerm, onSearchChange }) => {
             color: 'white',
             fontSize: '14px',
             fontFamily: 'monospace',
-            width: '100%', // Changed from 400px
-            maxWidth: '400px', // Keeps original max size
+            width: '100%',
+            maxWidth: '400px',
             padding: '4px 0',
             pointerEvents: 'auto'
           }}
@@ -820,7 +819,7 @@ export const SearchBar = memo(({ searchTerm, onSearchChange }) => {
               color: '#e9359e',
               cursor: 'pointer',
               marginLeft: '10px',
-              fontSize: '14px', // Original size
+              fontSize: '14px',
               padding: '4px',
               pointerEvents: 'auto'
             }}
