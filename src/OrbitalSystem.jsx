@@ -116,6 +116,7 @@ const GLBOrbitingSphere = memo(({
 }) => {
   const { scene } = useGLTF(modelPath)
   const groupRef = useRef()
+  const [isHovered, setIsHovered] = useState(false)
   const invalidate = useThree((state) => state.invalidate)
   
   const clonedScene = useMemo(() => {
@@ -138,6 +139,21 @@ const GLBOrbitingSphere = memo(({
     })
     return cloned
   }, [scene])
+
+  // Update emissive intensity when hover state changes
+  useEffect(() => {
+    if (!clonedScene) return
+    
+    clonedScene.traverse((child) => {
+      if (child.isMesh && child.material) {
+        const materials = Array.isArray(child.material) ? child.material : [child.material]
+        materials.forEach(mat => {
+          mat.emissiveIntensity = isHovered ? 1.2 : 0.5
+        })
+      }
+    })
+    invalidate()
+  }, [isHovered, clonedScene, invalidate])
 
   useEffect(() => {
     if (groupRef.current) {
@@ -191,7 +207,20 @@ const GLBOrbitingSphere = memo(({
   }
 
   return (
-    <group ref={groupRef} onClick={handleClick}>
+    <group 
+      ref={groupRef} 
+      onClick={handleClick}
+      onPointerEnter={(e) => {
+        e.stopPropagation()
+        setIsHovered(true)
+        document.body.style.cursor = 'pointer'
+      }}
+      onPointerLeave={(e) => {
+        e.stopPropagation()
+        setIsHovered(false)
+        document.body.style.cursor = 'default'
+      }}
+    >
       <primitive 
         object={clonedScene} 
         scale={scale}
@@ -287,12 +316,19 @@ const CentralSphere = memo(({ hideBanner = false }) => {
 
 CentralSphere.displayName = 'CentralSphere'
 
-// ASTEROID FIELD with video essay matching
+// ASTEROID FIELD with click-to-navigate
 const AsteroidField = memo(({ asteroidData = [], searchTerm = '' }) => {
   const meshRef = useRef()
   const [hoveredIndex, setHoveredIndex] = useState(null)
   const hoveredAsteroid = hoveredIndex !== null ? asteroidData[hoveredIndex] : null
   const invalidate = useThree((state) => state.invalidate)
+  
+  // Navigate to student profile
+  const handleAsteroidClick = useCallback((studentNumber) => {
+    if (studentNumber) {
+      window.location.href = `/profile/${studentNumber}`
+    }
+  }, [])
   
   const sharedGeometry = useMemo(() => new THREE.SphereGeometry(1, 4, 3), [])
   const tempObject = useMemo(() => new THREE.Object3D(), [])
@@ -356,7 +392,7 @@ const AsteroidField = memo(({ asteroidData = [], searchTerm = '' }) => {
       
       let intensity
       if (isHovered) {
-        intensity = 2.0
+        intensity = 2.5  // Increased from 2.0 for more noticeable hover
       } else if (isConnected) {
         intensity = 1.5
       } else if (isMatch) {
@@ -430,6 +466,14 @@ const AsteroidField = memo(({ asteroidData = [], searchTerm = '' }) => {
           setHoveredIndex(null)
           document.body.style.cursor = 'default'
           invalidate()
+        }}
+        onClick={(e) => {
+          e.stopPropagation()
+          const id = e.instanceId
+          if (id !== undefined && id >= 0 && id < asteroidData.length) {
+            const asteroid = asteroidData[id]
+            handleAsteroidClick(asteroid.studentNumber)
+          }
         }}
       />
       
@@ -521,6 +565,17 @@ const AsteroidField = memo(({ asteroidData = [], searchTerm = '' }) => {
                 textOverflow: 'ellipsis'
               }}>
                 {hoveredAsteroid.bio || 'No bio available'}
+              </div>
+              
+              <div style={{
+                fontSize: '9px',
+                color: '#e9359e',
+                marginTop: '8px',
+                fontWeight: 'bold',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px'
+              }}>
+                Click to view profile →
               </div>
             </div>
           </div>

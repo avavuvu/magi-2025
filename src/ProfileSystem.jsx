@@ -4,6 +4,19 @@ import * as THREE from 'three'
 import Papa from 'papaparse'
 
 // ============================================
+// HELPER FUNCTION TO SLUGIFY WORK TITLES
+// ============================================
+const slugify = (text) => {
+  if (!text) return ''
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '') // Remove special characters
+    .replace(/\s+/g, '-')      // Replace spaces with hyphens
+    .replace(/-+/g, '-')        // Replace multiple hyphens with single
+    .trim()
+}
+
+// ============================================
 // DATA LOADING HOOK WITH DUPLICATE HANDLING
 // ============================================
 export const useAsteroidData = () => {
@@ -14,8 +27,9 @@ export const useAsteroidData = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Fetch CSV from public folder
-        const response = await fetch('/FormResponses.csv')
+        // Fetch CSV from public folder with cache busting
+        const timestamp = new Date().getTime()
+        const response = await fetch(`/FormResponses.csv?v=${timestamp}`)
         const csvContent = await response.text()
         
         const parsed = Papa.parse(csvContent, {
@@ -30,23 +44,78 @@ export const useAsteroidData = () => {
         const worksByStudent = {}
         
         parsed.data.forEach((row, index) => {
-          const studentName = row['Your Name (as you want it on the Expo website)'] || `Participant ${index + 1}`
+          const studentName = row['Your Name (as you want it on the Expo website)']
+          const studentNumber = row['Student number'] || ''
+          
+          // Skip rows without a student name
+          if (!studentName || studentName.trim() === '') {
+            console.log('⏭️  Skipping empty row', index)
+            return
+          }
+          
+          console.log('Row', index, '- Name:', studentName, '- Number:', studentNumber)
           
           if (!worksByStudent[studentName]) {
             worksByStudent[studentName] = {
               name: studentName,
               bio: row['Brief profile of yourself (30-80 words)'] || 'No bio available',
-              studentNumber: row['Student number'] || '',
-              profileSlug: row['Student number'] || `student-${index}`,
+              studentNumber: studentNumber,
+              profileSlug: studentNumber || `student-${index}`,
+              email: row['Reachable personal email'] || '',
+              portfolio: row['Portfolio URL'] || '',
+              favoriteGame: row['Your favourite game/animation you\'ve been vibing with recently.'] || '',
               works: []
             }
           }
           
+          const workTitle = row['Title of the Work'] || 'Untitled Work'
+          const workType = row['Type of work (one form per work)'] || 'Creative Work'
+          const workDescription = row['Brief description of your work (30-80 words)'] || ''
+          const videoUrlField = row['Please link to a downloadable video on Google Drive or Sharepoint (animation/playthrough/video essay). A PNG or PDF for poster and physical works.'] || ''
+          
+          // Generate showcase image filename: studentNumber-slugified-title
+          const showcaseImage = studentNumber && workTitle 
+            ? `${studentNumber}-${slugify(workTitle)}`
+            : null
+          
+          // Check if this work is flagged as an image sequence
+          const isImageSequence = videoUrlField.trim().toLowerCase() === 'images'
+          
+          let workData = {
+            title: workTitle,
+            type: workType,
+            description: workDescription,
+            showcaseImage: showcaseImage,
+            videoUrl: isImageSequence ? '' : videoUrlField.trim() // Only add video URL if not an image sequence
+          }
+          
+          // If flagged as "images", detect image sequence files
+          if (isImageSequence && showcaseImage) {
+            // Determine page count based on student and work
+            let pageCount = 10 // Default
+            
+            // Specific page counts for known works
+            if (studentNumber === 's3786759' && workTitle.toLowerCase().includes('archival object')) {
+              pageCount = 19 // Caitlin Butt - Archival Object: Detritus
+            } else if (studentNumber === 's4160763' && workTitle.toLowerCase().includes('other names')) {
+              pageCount = 4 // Rachel Roberts - Other Names for Zombies
+            }
+            
+            // Auto-detect images with pattern: showcaseImage-page-1, showcaseImage-page-2, etc.
+            const imageSequence = []
+            for (let i = 1; i <= pageCount; i++) {
+              imageSequence.push(`${showcaseImage}-page-${i}`)
+            }
+            
+            workData.images = imageSequence
+            // Remove showcaseImage since we're using the images array
+            delete workData.showcaseImage
+            
+            console.log(`🖼️  Detected ${pageCount}-page image sequence for ${studentName} - ${workTitle}:`, imageSequence.slice(0, 3), '...')
+          }
+          
           // Add this work to the student's works array
-          worksByStudent[studentName].works.push({
-            title: row['Title of the Work'] || 'Untitled Work',
-            type: row['Type of work (one form per work)'] || 'Creative Work'
-          })
+          worksByStudent[studentName].works.push(workData)
         })
         
         // Transform grouped data into asteroid format
@@ -68,6 +137,9 @@ export const useAsteroidData = () => {
             bio: student.bio,
             studentNumber: student.studentNumber,
             profileSlug: student.profileSlug,
+            email: student.email,
+            portfolio: student.portfolio,
+            favoriteGame: student.favoriteGame,
             // Multiple works array
             works: student.works,
             // For backwards compatibility - use first work

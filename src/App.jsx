@@ -5,9 +5,50 @@ import { OrbitalSystem, SearchBar } from './OrbitalSystem'
 import { useAsteroidData } from './ProfileSystem'
 import * as THREE from 'three'
 import './responsive.css'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import ProfilesPage from './ProfilesPage'
+import StudentProfilePage from './StudentProfilePage'
+
+// Cursor Tooltip Component - Desktop Only
+function CursorTooltip({ isVisible, text, position }) {
+  if (!isVisible) return null
+  
+  return (
+    <div style={{
+      position: 'fixed',
+      left: `${position.x + 15}px`,
+      top: `${position.y + 15}px`,
+      background: 'rgba(233, 53, 158, 0.95)',
+      border: '1px solid rgba(233, 53, 158, 1)',
+      padding: '6px 12px',
+      color: 'white',
+      fontSize: '11px',
+      fontFamily: 'monospace',
+      fontWeight: 'bold',
+      textTransform: 'uppercase',
+      letterSpacing: '0.5px',
+      whiteSpace: 'nowrap',
+      pointerEvents: 'none',
+      zIndex: 99999,
+      boxShadow: '0 0 15px rgba(233, 53, 158, 0.5)',
+      animation: 'tooltipFadeIn 0.2s ease-out',
+      backdropFilter: 'blur(5px)',
+      WebkitBackdropFilter: 'blur(5px)',
+      userSelect: 'none'
+    }}>
+      {text}
+      <style>{`
+        @keyframes tooltipFadeIn {
+          from { opacity: 0; transform: translate(-5px, -5px); }
+          to { opacity: 1; transform: translate(0, 0); }
+        }
+      `}</style>
+    </div>
+  )
+}
 
 // Category Side Window Component - NEW DESKTOP FEATURE
-function CategorySideWindow({ category, asteroidData, onClose }) {
+function CategorySideWindow({ category, asteroidData, onClose, onSearchTermChange }) {
   const [isVisible, setIsVisible] = useState(false)
   const [expandedStudents, setExpandedStudents] = useState(new Set())
   const [selectedProfile, setSelectedProfile] = useState(null)
@@ -69,9 +110,14 @@ function CategorySideWindow({ category, asteroidData, onClose }) {
     })
   }
 
-  const handleStudentClick = (student) => {
-    setSelectedProfile(student.works[0].fullProfile)
+const handleStudentClick = (student) => {
+  const profile = student.works[0].fullProfile
+  setSelectedProfile(profile)
+  // Trigger search highlighting for this student's name
+  if (onSearchTermChange) {
+    onSearchTermChange(profile.name)
   }
+}
 
   return (
     <>
@@ -226,9 +272,16 @@ function CategorySideWindow({ category, asteroidData, onClose }) {
                     marginTop: '4px'
                   }}>
                     {student.works.map((work, idx) => (
-                      <div
+<div
                         key={idx}
-                        onClick={() => setSelectedProfile(work.fullProfile)}
+onClick={(e) => {
+  e.stopPropagation()
+  setSelectedProfile(work.fullProfile)
+  // Trigger search highlighting for this student
+  if (onSearchTermChange) {
+    onSearchTermChange(work.fullProfile.name)
+  }
+}}
                         style={{
                           color: 'rgba(255, 255, 255, 0.6)',
                           fontSize: '10px',
@@ -252,24 +305,50 @@ function CategorySideWindow({ category, asteroidData, onClose }) {
       </div>
 
       {/* Profile Card */}
-      {selectedProfile && (
-        <div style={{
-          position: 'fixed',
-          top: '100px',
-          left: '80px',
-          width: '280px',
-          maxHeight: '350px',
-          background: 'rgba(0, 0, 0, 0.95)',
-          border: '1px solid rgba(255, 255, 255, 1)',
-          padding: '16px',
-          zIndex: 10001,
-          fontFamily: 'monospace',
-          animation: 'fadeIn 0.3s ease-out',
-          display: 'flex',
-          flexDirection: 'column'
-        }}>
+{selectedProfile && (
+        <div 
+          onClick={() => {
+            const studentNumber = selectedProfile.studentNumber
+            if (studentNumber) {
+              window.location.href = `/profile/${studentNumber}`
+            }
+          }}
+          style={{
+            position: 'fixed',
+            top: '100px',
+            left: '80px',
+            width: '280px',
+            maxHeight: '350px',
+            background: 'rgba(0, 0, 0, 0.95)',
+            border: '1px solid rgba(255, 255, 255, 1)',
+            padding: '16px',
+            zIndex: 10001,
+            fontFamily: 'monospace',
+            animation: 'fadeIn 0.3s ease-out',
+            display: 'flex',
+            flexDirection: 'column',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = '#e9359e'
+            e.currentTarget.style.background = 'rgba(233, 53, 158, 0.05)'
+            e.currentTarget.style.transform = 'translateX(5px)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 1)'
+            e.currentTarget.style.background = 'rgba(0, 0, 0, 0.95)'
+            e.currentTarget.style.transform = 'translateX(0)'
+          }}
+        >
           <button
-            onClick={() => setSelectedProfile(null)}
+onClick={(e) => {
+  e.stopPropagation()
+  setSelectedProfile(null)
+  if (onSearchTermChange) {
+    onSearchTermChange('')  // Clear search highlighting
+  }
+}}
             style={{
               position: 'absolute',
               top: '8px',
@@ -345,6 +424,8 @@ function CategorySideWindow({ category, asteroidData, onClose }) {
               }}>
                 {selectedProfile.workType}
               </div>
+
+
             </div>
           </div>
 
@@ -388,18 +469,48 @@ function CategorySideWindow({ category, asteroidData, onClose }) {
             </div>
           )}
 
-          <div style={{
-            fontSize: '11px',
-            color: '#cccccc',
-            lineHeight: '1.4',
-            height: '80px',
-            overflowY: 'auto',
-            paddingRight: '4px',
-            scrollbarWidth: 'thin',
-            scrollbarColor: 'rgba(233, 53, 158, 0.5) transparent'
-          }}>
-            {selectedProfile.bio || 'No bio available'}
-          </div>
+<div style={{
+  fontSize: '11px',
+  color: '#cccccc',
+  lineHeight: '1.4',
+  height: '80px',
+  overflowY: 'auto',
+  paddingRight: '4px',
+  scrollbarWidth: 'thin',
+  scrollbarColor: 'rgba(233, 53, 158, 0.5) transparent',
+  marginBottom: '12px'  // ← Added spacing
+}}>
+  {selectedProfile.bio || 'No bio available'}
+</div>
+
+
+{/* Click to view profile indicator - BOTTOM CENTER */}
+<div style={{
+  paddingTop: '12px',
+  borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+  textAlign: 'center',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: '8px',
+  marginTop: 'auto'  // ← Pushes to bottom
+}}>
+  <div style={{
+    fontSize: '10px',
+    color: '#e9359e',
+    textTransform: 'uppercase',
+    letterSpacing: '1px',
+    fontWeight: 'bold'
+  }}>
+    Click to view full profile
+  </div>
+  <span style={{
+    fontSize: '14px',
+    color: '#e9359e'
+  }}>
+    →
+  </span>
+</div>
 
           <style>{`
             @keyframes fadeIn {
@@ -683,7 +794,125 @@ function ArchiveDropdown() {
   )
 }
 
-export default function App() {
+// About Dropdown Component - NEW DESKTOP FEATURE
+function AboutDropdown() {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+
+  return (
+    <div 
+      className="about-dropdown-container" 
+      onMouseLeave={() => setIsDropdownOpen(false)}
+      style={{ position: 'relative', display: 'inline-block' }}
+      onMouseEnter={() => setIsDropdownOpen(true)}
+    >
+      <div style={{ position: 'relative' }}>
+        <button 
+          className="ui-button vertical"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px'
+          }}
+        >
+          <span>ABOUT</span>
+          <span>▶</span>
+        </button>
+      </div>
+
+      {isDropdownOpen && (
+        <div 
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 'calc(100% + 2px)',
+            backgroundColor: 'rgba(0, 0, 0, 0.95)',
+           // border: '1px solid #ccc',
+            borderLeft: 'none',
+            zIndex: 1000,
+            boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+            minWidth: '200px',
+            padding: '16px 20px',
+            fontFamily: 'monospace',
+            fontSize: '11px',
+            lineHeight: '1.6',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)'
+          }}
+        >
+          <div style={{ 
+            color: '#e9359e', 
+            fontWeight: 'bold', 
+            marginBottom: '12px',
+            textTransform: 'uppercase',
+            letterSpacing: '1px',
+            fontSize: '10px'
+          }}>
+            MAGI Expo 2025
+          </div>
+          
+<div style={{ color: '#ffffff', marginBottom: '8px' }}>
+  <span style={{ color: 'rgba(255, 255, 255, 0.6)' }}>Developed by:</span><br />
+  <a 
+    href="https://www.instagram.com/oddh0st/" 
+    target="_blank" 
+    rel="noopener noreferrer"
+    style={{ color: '#e9359e', textDecoration: 'none' }}
+  >
+    Adrian Frichitthavong
+  </a>
+  <div style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.85em', marginTop: '4px' }}>
+    in collaborative effort with the MAGI EXPO team.
+  </div>
+  <div style={{ color: '#ffffff', fontSize: '0.85em', marginTop: '8px' }}>
+    <div>3D Artist: Lewis Brewer</div>
+    <div>Website inspired by poster design by Sarah Cohen</div>
+  </div>
+</div>
+
+          <div style={{ 
+            borderTop: '1px solid rgba(255, 255, 255, 0.1)', 
+            paddingTop: '8px',
+            marginTop: '8px'
+          }}>
+            <div style={{ color: 'rgba(255, 255, 255, 0.6)', marginBottom: '4px' }}>
+              Built with:
+            </div>
+            <div style={{ color: '#ffffff', fontSize: '10px' }}>
+              • Three.js<br />
+              • React Three Fiber<br />
+              • JavaScript / React
+            </div>
+          </div>
+
+          <div style={{ 
+            borderTop: '1px solid rgba(255, 255, 255, 0.1)', 
+            paddingTop: '8px',
+            marginTop: '8px'
+          }}>
+            <a 
+              href="https://www.rmit.edu.au/study-with-us/levels-of-study/postgraduate-study/masters-by-coursework/master-of-animation-games-and-interactivity-mc232"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: '#e9359e',
+                fontSize: '10px',
+                textDecoration: 'none',
+                transition: 'opacity 0.2s'
+              }}
+              onMouseEnter={(e) => e.target.style.opacity = '0.7'}
+              onMouseLeave={(e) => e.target.style.opacity = '1'}
+            >
+              RMIT MAGI Program →
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function App() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState(null)
   const [isMobile, setIsMobile] = useState(false)
@@ -703,9 +932,13 @@ export default function App() {
   const lastRotationRef = useRef(0)
   const animationFrameRef = useRef(null)
   const lastUpdateTimeRef = useRef(0)
+  const [tooltipVisible, setTooltipVisible] = useState(false)
+const [tooltipText, setTooltipText] = useState('')
+const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 })
+const [hasInteracted, setHasInteracted] = useState(false)
+const tooltipTimeoutRef = useRef(null)
   
-  const canvasRef = useRef()
-  
+
   const { asteroidData: rawAsteroidData } = useAsteroidData()
   
   const asteroidData = useMemo(() => {
@@ -996,6 +1229,59 @@ export default function App() {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
+// Cursor tooltip logic - Desktop only
+useEffect(() => {
+  if (isMobile) return
+
+  const handleMouseMove = (e) => {
+    setCursorPosition({ x: e.clientX, y: e.clientY })
+    
+    if (hasInteracted) {
+      setTooltipVisible(false)
+      return
+    }
+
+    if (tooltipTimeoutRef.current) {
+      clearTimeout(tooltipTimeoutRef.current)
+    }
+
+    // Check if mouse is over the main 3D canvas area (excluding UI overlays)
+    const isOverUI = e.target.closest('.ui-overlay, .search-bar-container, .ui-button')
+    
+    if (!isOverUI) {
+      tooltipTimeoutRef.current = setTimeout(() => {
+        setTooltipText('Orbit around • Hover to interact')
+        setTooltipVisible(true)
+      }, 500)
+    } else {
+      setTooltipVisible(false)
+    }
+  }
+
+  const handleInteraction = () => {
+    setHasInteracted(true)
+    setTooltipVisible(false)
+    if (tooltipTimeoutRef.current) {
+      clearTimeout(tooltipTimeoutRef.current)
+    }
+  }
+
+  window.addEventListener('mousemove', handleMouseMove)
+  window.addEventListener('click', handleInteraction)
+  window.addEventListener('wheel', handleInteraction)
+  window.addEventListener('mousedown', handleInteraction)
+
+  return () => {
+    window.removeEventListener('mousemove', handleMouseMove)
+    window.removeEventListener('click', handleInteraction)
+    window.removeEventListener('wheel', handleInteraction)
+    window.removeEventListener('mousedown', handleInteraction)
+    if (tooltipTimeoutRef.current) {
+      clearTimeout(tooltipTimeoutRef.current)
+    }
+  }
+}, [isMobile, hasInteracted])
+
   return (
     <div style={{ 
       width: '100vw', 
@@ -1004,14 +1290,24 @@ export default function App() {
       overflow: 'hidden',
       touchAction: 'pan-x pan-y'
     }}>
+
+      {/* Cursor Tooltip - Desktop Only */}
+{!isMobile && (
+  <CursorTooltip 
+    isVisible={tooltipVisible}
+    text={tooltipText}
+    position={cursorPosition}
+  />
+)}
       {/* Category Side Window - Desktop Only */}
-      {!isMobile && selectedCategory && (
-        <CategorySideWindow 
-          category={selectedCategory}
-          asteroidData={asteroidData}
-          onClose={handleCloseWindow}
-        />
-      )}
+{!isMobile && selectedCategory && (
+  <CategorySideWindow 
+    category={selectedCategory}
+    asteroidData={asteroidData}
+    onClose={handleCloseWindow}
+    onSearchTermChange={setSearchTerm}
+  />
+)}
 
       {/* Search Bar - Hide on mobile */}
       {!isMobile && (
@@ -1070,7 +1366,10 @@ export default function App() {
           )}
          
           <div className="nav-section right">
-            <button className="ui-button">
+            <button 
+              className="ui-button"
+              onClick={() => window.location.href = '/profiles'}
+            >
               PROFILES
             </button>
             <img 
@@ -1097,11 +1396,20 @@ export default function App() {
           </div>
         </div>
         
-        <div className="side-nav" style={{ pointerEvents: 'auto' }}>
-          <ArchiveDropdown />
-          <button className="ui-button vertical">ABOUT</button>
-          <button className="ui-button vertical">CONTACT</button>
-        </div>
+<div className="side-nav" style={{ pointerEvents: 'auto' }}>
+  <ArchiveDropdown />
+  <AboutDropdown />
+  <a 
+    href="https://www.rmit.edu.au/study-with-us/levels-of-study/postgraduate-study/masters-by-coursework/master-of-animation-games-and-interactivity-mc232" 
+    target="_blank" 
+    rel="noopener noreferrer"
+    style={{ textDecoration: 'none', display: 'block' }}
+  >
+    <button className="ui-button vertical">
+      PROGRAM
+    </button>
+  </a>
+</div>
         
         <div className="bottom-nav" style={{ pointerEvents: 'auto' }}>
           <div className="info-section">
@@ -1185,7 +1493,7 @@ export default function App() {
 
       {/* Canvas */}
       <div
-        ref={canvasRef}
+        
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -1229,16 +1537,49 @@ export default function App() {
                     pointerEvents: 'auto',
                     userSelect: 'none'
                   }}
-                >
-                  <div style={{
-                    animation: isClosing ? 'fadeOut 0.3s ease-out' : 'fadeIn 0.3s ease-out',
-                    width: '60vw',
-                    maxWidth: '320px',
-                    transform: 'translate(0, 0)',
-                    pointerEvents: 'auto'
-                  }}>
-                    <div 
-                      onTouchStart={(e) => {
+>
+                    <div style={{
+                      animation: isClosing ? 'fadeOut 0.3s ease-out' : 'fadeIn 0.3s ease-out',
+                      width: '60vw',
+                      maxWidth: '320px',
+                      transform: 'translate(0, 0)',
+                      pointerEvents: 'auto'
+                    }}>
+                     {/* Tap to view profile link */}
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          const studentNumber = currentProfile.studentNumber
+                          if (studentNumber) {
+                            window.location.href = `/profile/${studentNumber}`
+                          }
+                        }}
+                        onTouchStart={(e) => e.stopPropagation()}
+                        onTouchEnd={(e) => {
+                          e.stopPropagation()
+                          const studentNumber = currentProfile.studentNumber
+                          if (studentNumber) {
+                            window.location.href = `/profile/${studentNumber}`
+                          }
+                        }}
+                        style={{
+                          textAlign: 'center',
+                          color: '#e9359e',
+                          fontSize: '9px',
+                          fontFamily: 'monospace',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                          cursor: 'pointer',
+                          marginBottom: '8px',
+                          opacity: 0.7,
+                          transition: 'opacity 0.2s ease'
+                        }}
+                      >
+                        View full profile →
+                      </div>
+
+                      <div 
+                        onTouchStart={(e) => {
                         if (hasMultipleWorks) {
                           e.stopPropagation()
                           setWorkSwipeStartX(e.touches[0].clientX)
@@ -1662,3 +2003,17 @@ export default function App() {
     </div>
   )
 }
+
+function AppWithRoutes() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<App />} />
+        <Route path="/profiles" element={<ProfilesPage />} />
+        <Route path="/profile/:studentNumber" element={<StudentProfilePage />} />
+      </Routes>
+    </BrowserRouter>
+  )
+}
+
+export default AppWithRoutes

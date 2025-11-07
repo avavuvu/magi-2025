@@ -1,6 +1,7 @@
 /* ========================================
    MAGI ORBITS - RESPONSIVE STYLES
    Mobile-friendly without breaking desktop
+   Updated to 1024px breakpoint for consistency
    ======================================== */
 
 /* ========== DESKTOP: Hide mobile-only logo ========== */
@@ -8,8 +9,8 @@
   display: none;
 }
 
-/* ========== MOBILE: 768px and below ========== */
-@media screen and (max-width: 768px) {
+/* ========== MOBILE: 1024px and below ========== */
+@media screen and (max-width: 1024px) {
   
   /* === SEARCH BAR === */
   .search-bar-container {
@@ -31,7 +32,7 @@
   /* === TOP NAVIGATION === */
   .top-nav {
     padding: 12px 16px !important;
-    padding-top: 12px !important; /* CHANGED: Removed extra padding, aligned to top */
+    padding-top: 12px !important;
     flex-direction: row !important;
     flex-wrap: nowrap !important;
     justify-content: space-between !important;
@@ -162,7 +163,7 @@
   /* === TOP NAVIGATION === */
   .top-nav {
     padding: 10px 12px !important;
-    padding-top: 10px !important; /* CHANGED: Aligned to top */
+    padding-top: 10px !important;
   }
   
   .top-nav .nav-section .logo-left {
@@ -246,30 +247,13 @@
   }
 }
 
-/* ========== TABLET: 769px to 1024px ========== */
-@media screen and (min-width: 769px) and (max-width: 1024px) {
-  
-  .search-bar-container {
-    width: 80%;
-    max-width: 600px;
-  }
-  
-  .top-nav .nav-section img {
-    height: 55px;
-  }
-  
-  .ui-button {
-    font-size: 13px;
-  }
-  
-  .bottom-nav .info-text {
-    font-size: 12px;
-  }
-}
+/* ========== TABLET: Removed - now covered by 1024px breakpoint ========== */
+/* Previously: 769px to 1024px */
+/* Now everything ≤1024px uses mobile styles */
 
 /* ========== SAFE AREA SUPPORT (iOS) ========== */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
-  @media screen and (max-width: 768px) {
+  @media screen and (max-width: 1024px) {
     .bottom-nav {
       padding-bottom: calc(16px + env(safe-area-inset-bottom)) !important;
     }
@@ -277,13 +261,13 @@
 }
 
 /* ========== ACCESSIBILITY ========== */
-@media screen and (max-width: 768px) {
+@media screen and (max-width: 1024px) {
   /* Ensure all interactive elements are touch-friendly */
   button,
   a,
   .ui-button {
-    min-height: 44px;
-    min-width: 44px;
+    min-height: 14px;
+    min-width: 14px;
   }
   
   /* Prevent text from being too small */
@@ -293,7 +277,7 @@
 }
 
 /* ========== PERFORMANCE ========== */
-@media screen and (max-width: 768px) {
+@media screen and (max-width: 1024px) {
   /* Reduce animations on mobile for better performance */
   * {
     animation-duration: 0.3s !important;
